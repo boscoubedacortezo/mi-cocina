@@ -1,0 +1,579 @@
+"use client";
+
+import { useId, useRef, useState, useTransition } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Camera,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { prepareImage } from "@/lib/images";
+import {
+  RECIPE_IMAGES_BUCKET,
+  SHOP_SECTIONS,
+  UNITS,
+  type ShopSection,
+  type Unit,
+} from "@/lib/recipes/constants";
+import { recipeInputSchema } from "@/lib/recipes/schema";
+import { createClient } from "@/lib/supabase/client";
+import { createRecipe, updateRecipe } from "../actions";
+
+export type RecipeFormInitial = {
+  id: string;
+  title: string;
+  description: string | null;
+  servings: number;
+  prep_minutes: number | null;
+  cook_minutes: number | null;
+  tags: string[];
+  source_url: string | null;
+  notes: string | null;
+  image_path: string | null;
+  image_url: string | null;
+  ingredients: {
+    name: string;
+    quantity: number | null;
+    unit: Unit | null;
+    shop_section: ShopSection;
+    optional: boolean;
+  }[];
+  steps: { text: string }[];
+};
+
+type IngredientRow = {
+  key: string;
+  name: string;
+  quantity: string;
+  unit: Unit | "";
+  shop_section: ShopSection;
+  optional: boolean;
+};
+type StepRow = { key: string; text: string };
+
+const selectClass =
+  "h-9 w-full rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+const newKey = () => crypto.randomUUID();
+
+const emptyIngredient = (): IngredientRow => ({
+  key: newKey(),
+  name: "",
+  quantity: "",
+  unit: "",
+  shop_section: "Otros",
+  optional: false,
+});
+
+function toNumber(value: string) {
+  const trimmed = value.trim().replace(",", ".");
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : Number.NaN;
+}
+
+function move<T>(list: T[], from: number, to: number) {
+  if (to < 0 || to >= list.length) return list;
+  const next = [...list];
+  next.splice(to, 0, next.splice(from, 1)[0]);
+  return next;
+}
+
+export function RecipeForm({
+  userId,
+  initial,
+}: {
+  userId: string;
+  initial?: RecipeFormInitial;
+}) {
+  const formId = useId();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [pending, startTransition] = useTransition();
+
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [servings, setServings] = useState(String(initial?.servings ?? 4));
+  const [prep, setPrep] = useState(String(initial?.prep_minutes ?? ""));
+  const [cook, setCook] = useState(String(initial?.cook_minutes ?? ""));
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+  const [tagDraft, setTagDraft] = useState("");
+  const [sourceUrl, setSourceUrl] = useState(initial?.source_url ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [ingredients, setIngredients] = useState<IngredientRow[]>(
+    initial?.ingredients.length
+      ? initial.ingredients.map((item) => ({
+          key: newKey(),
+          name: item.name,
+          quantity: item.quantity === null ? "" : String(item.quantity),
+          unit: item.unit ?? "",
+          shop_section: item.shop_section,
+          optional: item.optional,
+        }))
+      : [emptyIngredient()],
+  );
+  const [steps, setSteps] = useState<StepRow[]>(
+    initial?.steps.length
+      ? initial.steps.map((step) => ({ key: newKey(), text: step.text }))
+      : [{ key: newKey(), text: "" }],
+  );
+
+  // Photo: the stored path is kept until a new one is uploaded on save.
+  const [imagePath, setImagePath] = useState(initial?.image_path ?? null);
+  const [preview, setPreview] = useState(initial?.image_url ?? null);
+  const [newImage, setNewImage] = useState<{ blob: Blob; ext: string } | null>(
+    null,
+  );
+
+  function addTag(raw: string) {
+    const tag = raw.trim().toLowerCase();
+    if (tag && !tags.includes(tag)) setTags([...tags, tag]);
+    setTagDraft("");
+  }
+
+  async function onPickImage(file: File | undefined) {
+    if (!file) return;
+    try {
+      const prepared = await prepareImage(file);
+      if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
+      setNewImage(prepared);
+      setPreview(URL.createObjectURL(prepared.blob));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Imagen no válida.");
+    }
+  }
+
+  function removeImage() {
+    if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
+    setNewImage(null);
+    setPreview(null);
+    setImagePath(null);
+    if (fileInput.current) fileInput.current.value = "";
+  }
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (pending) return;
+
+    const quantities = ingredients.map((row) => toNumber(row.quantity));
+    if (quantities.some((q) => Number.isNaN(q))) {
+      toast.error("Hay una cantidad que no es un número.");
+      return;
+    }
+    const minutes = [toNumber(prep), toNumber(cook)];
+    if (minutes.some((m) => Number.isNaN(m))) {
+      toast.error("Los tiempos deben ser números.");
+      return;
+    }
+
+    // Empty rows are dropped; the rest is validated with the shared schema.
+    const parsed = recipeInputSchema.safeParse({
+      title,
+      description,
+      servings: toNumber(servings),
+      prep_minutes: minutes[0],
+      cook_minutes: minutes[1],
+      tags,
+      source_url: sourceUrl,
+      notes,
+      image_path: imagePath,
+      ingredients: ingredients
+        .map((row, i) => ({ row, quantity: quantities[i] }))
+        .filter(({ row }) => row.name.trim() || row.quantity.trim())
+        .map(({ row, quantity }) => ({
+          name: row.name,
+          quantity,
+          unit: row.unit || null,
+          shop_section: row.shop_section,
+          optional: row.optional,
+        })),
+      steps: steps.filter((s) => s.text.trim()).map((s) => ({ text: s.text })),
+    });
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0].message);
+      return;
+    }
+
+    startTransition(async () => {
+      let uploadedPath: string | null = null;
+      const payload = { ...parsed.data };
+
+      if (newImage) {
+        const path = `${userId}/${crypto.randomUUID()}.${newImage.ext}`;
+        const { error } = await createClient()
+          .storage.from(RECIPE_IMAGES_BUCKET)
+          .upload(path, newImage.blob, {
+            contentType: newImage.blob.type || undefined,
+          });
+        if (error) {
+          toast.error("No se pudo subir la foto. Inténtalo de nuevo.");
+          return;
+        }
+        uploadedPath = path;
+        payload.image_path = path;
+      }
+
+      // On success the action redirects, so it only returns when it failed.
+      const result = initial
+        ? await updateRecipe(initial.id, payload)
+        : await createRecipe(payload);
+      if (result?.error) {
+        toast.error(result.error);
+        if (uploadedPath) {
+          await createClient()
+            .storage.from(RECIPE_IMAGES_BUCKET)
+            .remove([uploadedPath]);
+        }
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-8 pb-4" noValidate>
+      <section className="flex flex-col gap-3">
+        <Label>Foto</Label>
+        {preview ? (
+          <div className="relative overflow-hidden rounded-xl border">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="" className="aspect-[4/3] w-full object-cover" />
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute top-2 right-2"
+              onClick={removeImage}
+              aria-label="Quitar foto"
+            >
+              <X />
+            </Button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground"
+          >
+            <Camera className="size-6" aria-hidden />
+            Añadir foto
+          </button>
+        )}
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+          className="hidden"
+          onChange={(e) => onPickImage(e.target.files?.[0])}
+        />
+        {preview && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => fileInput.current?.click()}
+          >
+            Cambiar foto
+          </Button>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-title`}>Título</Label>
+          <Input
+            id={`${formId}-title`}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={150}
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-description`}>Descripción</Label>
+          <Textarea
+            id={`${formId}-description`}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            maxLength={1000}
+          />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-servings`}>Raciones</Label>
+            <Input
+              id={`${formId}-servings`}
+              inputMode="numeric"
+              value={servings}
+              onChange={(e) => setServings(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-prep`}>Prep. (min)</Label>
+            <Input
+              id={`${formId}-prep`}
+              inputMode="numeric"
+              value={prep}
+              onChange={(e) => setPrep(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-cook`}>Cocción (min)</Label>
+            <Input
+              id={`${formId}-cook`}
+              inputMode="numeric"
+              value={cook}
+              onChange={(e) => setCook(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-tags`}>Etiquetas</Label>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="gap-1">
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => setTags(tags.filter((t) => t !== tag))}
+                    aria-label={`Quitar etiqueta ${tag}`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Input
+              id={`${formId}-tags`}
+              value={tagDraft}
+              placeholder="p. ej. pasta, rápido"
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.endsWith(",")) addTag(value.slice(0, -1));
+                else setTagDraft(value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addTag(tagDraft);
+                }
+              }}
+              onBlur={() => addTag(tagDraft)}
+            />
+            <Button type="button" variant="outline" onClick={() => addTag(tagDraft)}>
+              Añadir
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-heading text-lg font-semibold">Ingredientes</h2>
+        <ul className="flex flex-col gap-3">
+          {ingredients.map((row, index) => {
+            const update = (patch: Partial<IngredientRow>) =>
+              setIngredients(
+                ingredients.map((r) => (r.key === row.key ? { ...r, ...patch } : r)),
+              );
+            return (
+              <li key={row.key} className="flex flex-col gap-2 rounded-xl border p-3">
+                <Input
+                  value={row.name}
+                  onChange={(e) => update({ name: e.target.value })}
+                  placeholder="Ingrediente"
+                  aria-label={`Ingrediente ${index + 1}`}
+                  maxLength={120}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    value={row.quantity}
+                    onChange={(e) => update({ quantity: e.target.value })}
+                    inputMode="decimal"
+                    placeholder="Cantidad"
+                    aria-label="Cantidad"
+                  />
+                  <select
+                    value={row.unit}
+                    onChange={(e) => update({ unit: e.target.value as Unit | "" })}
+                    className={selectClass}
+                    aria-label="Unidad"
+                  >
+                    <option value="">Sin unidad</option>
+                    {UNITS.map((unit) => (
+                      <option key={unit} value={unit}>
+                        {unit}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <select
+                  value={row.shop_section}
+                  onChange={(e) =>
+                    update({ shop_section: e.target.value as ShopSection })
+                  }
+                  className={selectClass}
+                  aria-label="Sección del súper"
+                >
+                  {SHOP_SECTIONS.map((section) => (
+                    <option key={section} value={section}>
+                      {section}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={row.optional}
+                      onChange={(e) => update({ optional: e.target.checked })}
+                      className="size-4"
+                    />
+                    Opcional
+                  </label>
+                  <div className="flex">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={index === 0}
+                      onClick={() => setIngredients(move(ingredients, index, index - 1))}
+                      aria-label="Subir ingrediente"
+                    >
+                      <ArrowUp />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={index === ingredients.length - 1}
+                      onClick={() => setIngredients(move(ingredients, index, index + 1))}
+                      aria-label="Bajar ingrediente"
+                    >
+                      <ArrowDown />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setIngredients(ingredients.filter((r) => r.key !== row.key))
+                      }
+                      aria-label="Quitar ingrediente"
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setIngredients([...ingredients, emptyIngredient()])}
+        >
+          <Plus /> Añadir ingrediente
+        </Button>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-heading text-lg font-semibold">Pasos</h2>
+        <ol className="flex flex-col gap-3">
+          {steps.map((step, index) => (
+            <li key={step.key} className="flex flex-col gap-2 rounded-xl border p-3">
+              <Label htmlFor={`${formId}-step-${step.key}`}>Paso {index + 1}</Label>
+              <Textarea
+                id={`${formId}-step-${step.key}`}
+                value={step.text}
+                onChange={(e) =>
+                  setSteps(
+                    steps.map((s) =>
+                      s.key === step.key ? { ...s, text: e.target.value } : s,
+                    ),
+                  )
+                }
+                rows={3}
+                maxLength={2000}
+              />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={index === 0}
+                  onClick={() => setSteps(move(steps, index, index - 1))}
+                  aria-label="Subir paso"
+                >
+                  <ArrowUp />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={index === steps.length - 1}
+                  onClick={() => setSteps(move(steps, index, index + 1))}
+                  aria-label="Bajar paso"
+                >
+                  <ArrowDown />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSteps(steps.filter((s) => s.key !== step.key))}
+                  aria-label="Quitar paso"
+                >
+                  <Trash2 />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setSteps([...steps, { key: newKey(), text: "" }])}
+        >
+          <Plus /> Añadir paso
+        </Button>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-notes`}>Notas</Label>
+          <Textarea
+            id={`${formId}-notes`}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            maxLength={4000}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-source`}>Origen (URL)</Label>
+          <Input
+            id={`${formId}-source`}
+            type="url"
+            inputMode="url"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+            placeholder="https://"
+          />
+        </div>
+      </section>
+
+      <Button type="submit" size="lg" disabled={pending}>
+        {pending ? "Guardando…" : initial ? "Guardar cambios" : "Crear receta"}
+      </Button>
+    </form>
+  );
+}
