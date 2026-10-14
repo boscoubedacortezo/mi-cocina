@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { copyText } from "@/lib/clipboard";
 import { formatMinutes } from "@/lib/recipes/format";
 import { stepSettings } from "@/lib/thermomix/cookidoo";
+import { helixPlan } from "@/lib/thermomix/helix";
 import type { ThermomixStep } from "@/lib/thermomix/schema";
 import { cn } from "@/lib/utils";
 
@@ -64,22 +65,6 @@ function useChecklist(storageKey: string) {
     },
     reset: () => write(new Set()),
   };
-}
-
-/** Fields in the order of Cookidoo's "Añadir configuración" dialog (Manual tab). */
-function settingsOf(step: ThermomixStep): [string, string][] {
-  const fields: [string, string][] = [];
-  if (step.time_seconds) {
-    fields.push(["Minutos", String(Math.floor(step.time_seconds / 60))]);
-    fields.push(["Segundos", String(step.time_seconds % 60)]);
-  }
-  if (step.temperature !== null) {
-    fields.push(["Temperatura", step.temperature === "Varoma" ? "Varoma" : `${step.temperature} °C`]);
-  }
-  if (step.speed) fields.push(["Velocidad", step.speed === "turbo" ? "Turbo" : step.speed]);
-  if (step.reverse) fields.push(["Giro", "Inverso"]);
-  if (step.accessory) fields.push(["Accesorio", step.accessory]);
-  return fields;
 }
 
 type Segment = { kind: "text" | "ingredient"; value: string };
@@ -249,7 +234,7 @@ export function CookidooGuide({
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-lg font-semibold">3. Pasos</h2>
         {steps.map((step, index) => {
-          const settings = settingsOf(step);
+          const helix = helixPlan(step);
           const summary = stepSettings(step).join(" / ");
           return (
             <Item
@@ -283,15 +268,21 @@ export function CookidooGuide({
                   </>
                 )}
               </p>
-              {settings.length > 0 && (
-                <dl className="mt-3 grid grid-cols-2 gap-2">
-                  {settings.map(([label, value]) => (
-                    <div key={label} className="rounded-lg bg-secondary px-2 py-1">
-                      <dt className="text-xs text-muted-foreground">{label}</dt>
-                      <dd className="font-medium">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
+              {helix.fields.length > 0 && (
+                <div className="mt-3">
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Fan className="size-3.5" aria-hidden /> Hélice → pestaña{" "}
+                    <strong className="text-foreground">{helix.tab}</strong>
+                  </p>
+                  <dl className="mt-1 grid grid-cols-2 gap-2">
+                    {helix.fields.map(([label, value]) => (
+                      <div key={label} className="rounded-lg bg-secondary px-2 py-1">
+                        <dt className="text-xs text-muted-foreground">{label}</dt>
+                        <dd className="font-medium">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
               )}
             </Item>
           );
