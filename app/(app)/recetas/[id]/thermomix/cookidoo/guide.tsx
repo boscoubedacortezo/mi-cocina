@@ -5,6 +5,7 @@ import { Check, Copy, Fan, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { copyText } from "@/lib/clipboard";
 import { formatMinutes } from "@/lib/recipes/format";
+import { stepSettings } from "@/lib/thermomix/cookidoo";
 import type { ThermomixStep } from "@/lib/thermomix/schema";
 import { cn } from "@/lib/utils";
 
@@ -81,10 +82,29 @@ function settingsOf(step: ThermomixStep): [string, string][] {
   return fields;
 }
 
-/** Ingredient lines the step text names verbatim: the ones to link with the scale. */
-function linkedIngredients(text: string, ingredients: string[]) {
-  const haystack = text.toLowerCase();
-  return ingredients.filter((line) => haystack.includes(line.toLowerCase()));
+type Segment = { kind: "text" | "ingredient"; value: string };
+
+/**
+ * Splits a step into what you type and what you insert with the scale: the
+ * ingredient lines the text names verbatim are the ones to link.
+ */
+function segmentStep(text: string, ingredients: string[]): Segment[] {
+  const lower = text.toLowerCase();
+  const hits = ingredients
+    .map((line) => ({ start: lower.indexOf(line.toLowerCase()), length: line.length }))
+    .filter((hit) => hit.start !== -1)
+    .sort((a, b) => a.start - b.start || b.length - a.length);
+
+  const segments: Segment[] = [];
+  let cursor = 0;
+  for (const hit of hits) {
+    if (hit.start < cursor) continue;
+    if (hit.start > cursor) segments.push({ kind: "text", value: text.slice(cursor, hit.start) });
+    segments.push({ kind: "ingredient", value: text.slice(hit.start, hit.start + hit.length) });
+    cursor = hit.start + hit.length;
+  }
+  if (cursor < text.length) segments.push({ kind: "text", value: text.slice(cursor) });
+  return segments;
 }
 
 function Item({
@@ -98,7 +118,7 @@ function Item({
   done: boolean;
   onToggle: (id: string) => void;
   children: React.ReactNode;
-  copy: { text: string; label: string };
+  copy?: { text: string; label: string };
 }) {
   return (
     <div className={cn("flex items-start gap-3 rounded-xl border p-3", done && "bg-muted/50")}>
@@ -116,15 +136,17 @@ function Item({
         {done && <Check className="size-4" aria-hidden />}
       </button>
       <div className={cn("min-w-0 flex-1", done && "text-muted-foreground")}>{children}</div>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        onClick={() => copyText(copy.text, copy.label)}
-        aria-label={`Copiar ${copy.label.toLowerCase()}`}
-      >
-        <Copy />
-      </Button>
+      {copy && (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => copyText(copy.text, copy.label)}
+          aria-label={`Copiar ${copy.label.toLowerCase()}`}
+        >
+          <Copy />
+        </Button>
+      )}
     </div>
   );
 }
@@ -158,17 +180,20 @@ export function CookidooGuide({
           En la app de Cookidoo: <em>Creadas por mí</em> → crear receta. Copia cada elemento con su
           botón y márcalo cuando esté hecho.
         </p>
-        <ol className="list-decimal pl-5 text-sm text-muted-foreground">
-          <li>Datos del paso: pega el texto en «Describir paso».</li>
+        <p className="text-sm text-muted-foreground">
+          Cookidoo no deja pegar en los pasos, así que cada paso se monta a mano, en este orden:
+        </p>
+        <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+          <li>Texto normal: lo escribes en «Describir paso».</li>
           <li>
-            <Scale className="inline size-4 align-text-bottom" aria-hidden /> Balanza: elige en la
-            lista los ingredientes que te indico, para vincularlos.
+            <Scale className="inline size-4 align-text-bottom" aria-hidden /> Ingrediente: lo eliges
+            en la balanza (lo inserta y lo vincula).
           </li>
           <li>
-            <Fan className="inline size-4 align-text-bottom" aria-hidden /> Hélice: pon minutos,
-            segundos, temperatura y velocidad.
+            <Fan className="inline size-4 align-text-bottom" aria-hidden /> Ajustes: los pones con
+            la hélice (los inserta al final).
           </li>
-        </ol>
+        </ul>
         <div className="mt-2 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
             {Math.min(count, total)} de {total} hechos
@@ -225,45 +250,48 @@ export function CookidooGuide({
         <h2 className="font-heading text-lg font-semibold">3. Pasos</h2>
         {steps.map((step, index) => {
           const settings = settingsOf(step);
-          const linked = linkedIngredients(step.text, ingredients);
+          const summary = stepSettings(step).join(" / ");
           return (
             <Item
               key={index}
               id={`s${index}`}
               done={done.has(`s${index}`)}
               onToggle={toggle}
-              copy={{ text: step.text, label: `Texto del paso ${index + 1}` }}
             >
               <p className="text-sm text-muted-foreground">Paso {index + 1}</p>
-              <p>{step.text}</p>
-              {linked.length > 0 && (
-                <div className="mt-3">
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Scale className="size-3.5" aria-hidden /> Vincular con la balanza
-                  </p>
-                  <ul className="mt-1 flex flex-wrap gap-1.5">
-                    {linked.map((line) => (
-                      <li key={line} className="rounded-lg bg-secondary px-2 py-1 text-sm font-medium">
-                        {line}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <p className="leading-8">
+                {segmentStep(step.text, ingredients).map((segment, i) =>
+                  segment.kind === "text" ? (
+                    <span key={i}>{segment.value}</span>
+                  ) : (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-sm font-medium"
+                    >
+                      <Scale className="size-3.5" aria-hidden />
+                      {segment.value}
+                    </span>
+                  ),
+                )}
+                {summary && (
+                  <>
+                    {" "}
+                    <span className="inline-flex items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 text-sm font-medium">
+                      <Fan className="size-3.5" aria-hidden />
+                      {summary}
+                    </span>
+                  </>
+                )}
+              </p>
               {settings.length > 0 && (
-                <div className="mt-3">
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Fan className="size-3.5" aria-hidden /> Configuración de la hélice
-                  </p>
-                  <dl className="mt-1 grid grid-cols-2 gap-2">
-                    {settings.map(([label, value]) => (
-                      <div key={label} className="rounded-lg bg-secondary px-2 py-1">
-                        <dt className="text-xs text-muted-foreground">{label}</dt>
-                        <dd className="font-medium">{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2">
+                  {settings.map(([label, value]) => (
+                    <div key={label} className="rounded-lg bg-secondary px-2 py-1">
+                      <dt className="text-xs text-muted-foreground">{label}</dt>
+                      <dd className="font-medium">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
               )}
             </Item>
           );
