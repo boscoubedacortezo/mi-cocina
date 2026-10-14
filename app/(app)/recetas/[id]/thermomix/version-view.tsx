@@ -12,7 +12,6 @@ import {
   stepSettings,
 } from "@/lib/thermomix/cookidoo";
 import type { ThermomixStep } from "@/lib/thermomix/schema";
-import { CookidooLink } from "./cookidoo-link";
 import { VersionEditor } from "./version-editor";
 
 export type VersionData = {
@@ -95,8 +94,6 @@ export function VersionView({
           Cookidoo tiene campos separados para ingredientes y pasos: puedes copiar cada parte por separado.
         </p>
       </div>
-
-      <CookidooLink recipeId={recipeId} />
 
       {version.notes && (
         <p className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">

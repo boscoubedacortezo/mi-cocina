@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getRecipe } from "@/lib/recipes/queries";
-import { resolveCookMinutes } from "@/lib/share/recipe-jsonld";
+import { resolveCookMinutes } from "@/lib/thermomix/cookidoo";
 import { getThermomixVersion } from "@/lib/thermomix/queries";
 import { ConvertPanel } from "./convert-panel";
 import { VersionView } from "./version-view";
@@ -43,7 +43,7 @@ export default async function ThermomixPage({
             prepMinutes={recipe.prep_minutes}
             totalMinutes={
               (recipe.prep_minutes ?? 0) +
-                (resolveCookMinutes({ cookMinutes: recipe.cook_minutes, steps: version.steps }) ?? 0) ||
+                (resolveCookMinutes(recipe.cook_minutes, version.steps) ?? 0) ||
               null
             }
           />

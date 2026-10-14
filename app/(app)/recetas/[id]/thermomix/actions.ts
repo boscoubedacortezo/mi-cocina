@@ -5,11 +5,8 @@ import { z } from "zod";
 import { convertToThermomix } from "@/lib/ai/convert-thermomix";
 import { ImportError } from "@/lib/ai/errors";
 import { requireUser } from "@/lib/auth-server";
-import { getOrigin } from "@/lib/origin";
 import { getRecipe } from "@/lib/recipes/queries";
-import { createShareToken } from "@/lib/share/token";
 import { buildCookidooText } from "@/lib/thermomix/cookidoo";
-import { getThermomixVersion } from "@/lib/thermomix/queries";
 import { thermomixInputSchema } from "@/lib/thermomix/schema";
 
 export type TmResult =
@@ -117,26 +114,4 @@ export async function saveThermomixVersion(
 
   refresh(rid.data);
   return { ok: true, notes: null };
-}
-
-export type LinkResult =
-  | { ok: true; url: string; expiresAt: string }
-  | { ok: false; error: string };
-
-/** Creates a temporary public link Cookidoo's importer can read. */
-export async function createCookidooLink(recipeId: unknown): Promise<LinkResult> {
-  await requireUser();
-  const id = idSchema.safeParse(recipeId);
-  if (!id.success) return { ok: false, error: "Receta no válida." };
-
-  // Read with the user's session: RLS guarantees the recipe is theirs.
-  const version = await getThermomixVersion(id.data);
-  if (!version) return { ok: false, error: "Convierte primero la receta a TM7." };
-
-  const { token, expiresAt } = createShareToken(id.data);
-  return {
-    ok: true,
-    url: `${await getOrigin()}/c/${token}`,
-    expiresAt: expiresAt.toISOString(),
-  };
 }

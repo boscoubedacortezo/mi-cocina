@@ -46,12 +46,9 @@ export function buildCookidooText(ingredientsText: string, steps: ThermomixStep[
   return `Ingredientes\n${buildIngredientsBlock(ingredientsText)}\n\nPasos\n${buildStepsBlock(steps)}`;
 }
 
-/**
- * Settings in Cookidoo's own compact notation ("5 min/100°C/vel 1/giro inverso"),
- * used on the public page so Cookidoo's importer can recognise them.
- */
-export function compactSettings(step: ThermomixStep) {
-  return stepSettings(step)
-    .map((part) => part.replace(" °C", "°C"))
-    .join("/");
+/** Cook time to show: the recipe's own, or the sum of the machine times. */
+export function resolveCookMinutes(cookMinutes: number | null, steps: ThermomixStep[]) {
+  if (cookMinutes) return cookMinutes;
+  const seconds = steps.reduce((sum, step) => sum + (step.time_seconds ?? 0), 0);
+  return seconds ? Math.ceil(seconds / 60) : null;
 }

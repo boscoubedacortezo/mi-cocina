@@ -2,8 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAllowedEmail } from "@/lib/auth";
 
-// "/c" is the signed, expiring share page used by Cookidoo's importer.
-const PUBLIC_PATHS = ["/login", "/auth", "/c"];
+const PUBLIC_PATHS = ["/login", "/auth"];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
