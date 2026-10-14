@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Fan, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { copyText } from "@/lib/clipboard";
 import { formatMinutes } from "@/lib/recipes/format";
-import { formatTime } from "@/lib/thermomix/cookidoo";
 import type { ThermomixStep } from "@/lib/thermomix/schema";
 import { cn } from "@/lib/utils";
 
@@ -66,16 +65,26 @@ function useChecklist(storageKey: string) {
   };
 }
 
-function settingsOf(step: ThermomixStep) {
-  return [
-    step.time_seconds ? ["Tiempo", formatTime(step.time_seconds)] : null,
-    step.temperature !== null
-      ? ["Temperatura", step.temperature === "Varoma" ? "Varoma" : `${step.temperature} °C`]
-      : null,
-    step.speed ? ["Velocidad", step.speed === "turbo" ? "Turbo" : step.speed] : null,
-    step.reverse ? ["Giro", "Inverso"] : null,
-    step.accessory ? ["Accesorio", step.accessory] : null,
-  ].filter((item): item is [string, string] => item !== null);
+/** Fields in the order of Cookidoo's "Añadir configuración" dialog (Manual tab). */
+function settingsOf(step: ThermomixStep): [string, string][] {
+  const fields: [string, string][] = [];
+  if (step.time_seconds) {
+    fields.push(["Minutos", String(Math.floor(step.time_seconds / 60))]);
+    fields.push(["Segundos", String(step.time_seconds % 60)]);
+  }
+  if (step.temperature !== null) {
+    fields.push(["Temperatura", step.temperature === "Varoma" ? "Varoma" : `${step.temperature} °C`]);
+  }
+  if (step.speed) fields.push(["Velocidad", step.speed === "turbo" ? "Turbo" : step.speed]);
+  if (step.reverse) fields.push(["Giro", "Inverso"]);
+  if (step.accessory) fields.push(["Accesorio", step.accessory]);
+  return fields;
+}
+
+/** Ingredient lines the step text names verbatim: the ones to link with the scale. */
+function linkedIngredients(text: string, ingredients: string[]) {
+  const haystack = text.toLowerCase();
+  return ingredients.filter((line) => haystack.includes(line.toLowerCase()));
 }
 
 function Item({
@@ -146,10 +155,20 @@ export function CookidooGuide({
       <header className="flex flex-col gap-1">
         <h1 className="font-heading text-2xl font-semibold">Pasar a Cookidoo</h1>
         <p className="text-muted-foreground">
-          En la app: <em>Creadas por mí</em> → crear receta. Copia cada elemento con el botón y
-          márcalo cuando esté hecho. En los pasos, pega el texto y pon los ajustes con el botón de
-          la hélice: Cookidoo no los lee del texto.
+          En la app de Cookidoo: <em>Creadas por mí</em> → crear receta. Copia cada elemento con su
+          botón y márcalo cuando esté hecho.
         </p>
+        <ol className="list-decimal pl-5 text-sm text-muted-foreground">
+          <li>Datos del paso: pega el texto en «Describir paso».</li>
+          <li>
+            <Scale className="inline size-4 align-text-bottom" aria-hidden /> Balanza: elige en la
+            lista los ingredientes que te indico, para vincularlos.
+          </li>
+          <li>
+            <Fan className="inline size-4 align-text-bottom" aria-hidden /> Hélice: pon minutos,
+            segundos, temperatura y velocidad.
+          </li>
+        </ol>
         <div className="mt-2 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
             {Math.min(count, total)} de {total} hechos
@@ -206,6 +225,7 @@ export function CookidooGuide({
         <h2 className="font-heading text-lg font-semibold">3. Pasos</h2>
         {steps.map((step, index) => {
           const settings = settingsOf(step);
+          const linked = linkedIngredients(step.text, ingredients);
           return (
             <Item
               key={index}
@@ -216,15 +236,34 @@ export function CookidooGuide({
             >
               <p className="text-sm text-muted-foreground">Paso {index + 1}</p>
               <p>{step.text}</p>
+              {linked.length > 0 && (
+                <div className="mt-3">
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Scale className="size-3.5" aria-hidden /> Vincular con la balanza
+                  </p>
+                  <ul className="mt-1 flex flex-wrap gap-1.5">
+                    {linked.map((line) => (
+                      <li key={line} className="rounded-lg bg-secondary px-2 py-1 text-sm font-medium">
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {settings.length > 0 && (
-                <dl className="mt-2 grid grid-cols-2 gap-2">
-                  {settings.map(([label, value]) => (
-                    <div key={label} className="rounded-lg bg-secondary px-2 py-1">
-                      <dt className="text-xs text-muted-foreground">{label}</dt>
-                      <dd className="font-medium">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
+                <div className="mt-3">
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Fan className="size-3.5" aria-hidden /> Configuración de la hélice
+                  </p>
+                  <dl className="mt-1 grid grid-cols-2 gap-2">
+                    {settings.map(([label, value]) => (
+                      <div key={label} className="rounded-lg bg-secondary px-2 py-1">
+                        <dt className="text-xs text-muted-foreground">{label}</dt>
+                        <dd className="font-medium">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
               )}
             </Item>
           );
