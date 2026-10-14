@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardCopy, Pencil } from "lucide-react";
-import { toast } from "sonner";
+import Link from "next/link";
+import { ClipboardCopy, ListChecks, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { copyText } from "@/lib/clipboard";
 import { formatMinutes } from "@/lib/recipes/format";
 import {
   buildIngredientsBlock,
@@ -22,15 +23,6 @@ export type VersionData = {
   steps: ThermomixStep[];
   cookidoo_text: string;
 };
-
-async function copy(text: string, label: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success(`${label} copiado`);
-  } catch {
-    toast.error("No se pudo copiar. Inténtalo desde la pantalla de edición.");
-  }
-}
 
 export function VersionView({
   recipeId,
@@ -62,19 +54,25 @@ export function VersionView({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
+        <Link
+          href={`/recetas/${recipeId}/thermomix/cookidoo`}
+          className={buttonVariants({ size: "lg" })}
+        >
+          <ListChecks /> Pasar a Cookidoo paso a paso
+        </Link>
         <Button
           type="button"
-          size="lg"
-          onClick={() => copy(version.cookidoo_text, "Texto para Cookidoo")}
+          variant="outline"
+          onClick={() => copyText(version.cookidoo_text, "Texto para Cookidoo")}
         >
-          <ClipboardCopy /> Copiar para Cookidoo
+          <ClipboardCopy /> Copiar todo el texto
         </Button>
         <div className="grid grid-cols-3 gap-2">
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => copy(buildIngredientsBlock(version.ingredients_text), "Ingredientes")}
+            onClick={() => copyText(buildIngredientsBlock(version.ingredients_text), "Ingredientes")}
           >
             Ingredientes
           </Button>
@@ -82,7 +80,7 @@ export function VersionView({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => copy(buildStepsBlock(version.steps), "Pasos")}
+            onClick={() => copyText(buildStepsBlock(version.steps), "Pasos")}
           >
             Pasos
           </Button>
@@ -91,7 +89,7 @@ export function VersionView({
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Cookidoo tiene campos separados para ingredientes y pasos: puedes copiar cada parte por separado.
+          En la app de Cookidoo cada ingrediente y cada paso se escriben por separado: la guía paso a paso te deja copiarlos uno a uno.
         </p>
       </div>
 

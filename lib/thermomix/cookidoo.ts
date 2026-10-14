@@ -52,3 +52,13 @@ export function resolveCookMinutes(cookMinutes: number | null, steps: ThermomixS
   const seconds = steps.reduce((sum, step) => sum + (step.time_seconds ?? 0), 0);
   return seconds ? Math.ceil(seconds / 60) : null;
 }
+
+/** Total time: preparation plus cooking (see `resolveCookMinutes`). */
+export function resolveTotalMinutes(
+  prepMinutes: number | null,
+  cookMinutes: number | null,
+  steps: ThermomixStep[],
+) {
+  const total = (prepMinutes ?? 0) + (resolveCookMinutes(cookMinutes, steps) ?? 0);
+  return total || null;
+}
