@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ImportError } from "@/lib/ai/errors";
 import { planMenu } from "@/lib/ai/plan-menu";
 import { requireUser } from "@/lib/auth-server";
+import { ensureMenu } from "@/lib/menu/ensure";
 import { weekDates } from "@/lib/menu/dates";
 import { listRecipesForPlanning } from "@/lib/menu/queries";
 import {
@@ -24,22 +25,6 @@ type Supabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
 
 const fail = (error: string): MenuResult => ({ ok: false, error });
 const done = (message: string | null = null): MenuResult => ({ ok: true, message });
-
-/** Finds the week's menu, creating it on first use. */
-async function ensureMenu(supabase: Supabase, weekStart: string) {
-  const find = () =>
-    supabase.from("menus").select("id").eq("week_start", weekStart).maybeSingle();
-
-  const existing = await find();
-  if (existing.error) return null;
-  if (existing.data) return existing.data.id as string;
-
-  const created = await supabase.from("menus").insert({ week_start: weekStart }).select("id").single();
-  if (!created.error) return created.data.id as string;
-  // Lost a race with another request creating the same week.
-  const retry = await find();
-  return (retry.data?.id as string | undefined) ?? null;
-}
 
 export async function setSlot(input: unknown): Promise<MenuResult> {
   const { supabase } = await requireUser();

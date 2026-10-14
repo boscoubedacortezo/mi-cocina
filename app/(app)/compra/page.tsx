@@ -1,12 +1,24 @@
 import type { Metadata } from "next";
+import { addDays, formatWeekRange, mondayOf, resolveWeek, todayInMadrid } from "@/lib/menu/dates";
+import { getShoppingList } from "@/lib/shopping/queries";
+import { ShoppingList } from "./shopping-list";
 
 export const metadata: Metadata = { title: "Lista de la compra" };
 
-export default function Page() {
+export default async function ShoppingPage({ searchParams }: PageProps<"/compra">) {
+  const today = todayInMadrid();
+  const weekStart = resolveWeek((await searchParams).semana, today);
+  const { items, plannedMeals } = await getShoppingList(weekStart);
+
   return (
-    <div className="flex flex-col gap-2">
-      <h1 className="font-heading text-2xl font-semibold">Lista de la compra</h1>
-      <p className="text-muted-foreground">Aquí aparecerá la lista generada desde el menú (fase 6).</p>
-    </div>
+    <ShoppingList
+      weekStart={weekStart}
+      prevWeek={addDays(weekStart, -7)}
+      nextWeek={addDays(weekStart, 7)}
+      isCurrentWeek={weekStart === mondayOf(today)}
+      rangeLabel={formatWeekRange(weekStart)}
+      plannedMeals={plannedMeals}
+      items={items}
+    />
   );
 }

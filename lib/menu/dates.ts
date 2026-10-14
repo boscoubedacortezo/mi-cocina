@@ -49,3 +49,9 @@ export function formatWeekRange(monday: string) {
   });
   return `${short.format(parseIso(monday)!)} – ${short.format(parseIso(addDays(monday, 6))!)}`;
 }
+
+/** Monday of the week named by a `?semana=` param, or of the current week. */
+export function resolveWeek(param: string | string[] | undefined, today: string) {
+  const value = Array.isArray(param) ? param[0] : param;
+  return value && parseIso(value) ? mondayOf(value) : mondayOf(today);
+}

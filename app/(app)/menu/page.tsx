@@ -4,7 +4,7 @@ import {
   formatDay,
   formatWeekRange,
   mondayOf,
-  parseIso,
+  resolveWeek,
   todayInMadrid,
   weekDates,
 } from "@/lib/menu/dates";
@@ -15,11 +15,6 @@ export const metadata: Metadata = { title: "Menú semanal" };
 
 // The AI menu server actions run under this page: allow time for the model.
 export const maxDuration = 60;
-
-function resolveWeek(param: string | string[] | undefined, today: string) {
-  const value = Array.isArray(param) ? param[0] : param;
-  return value && parseIso(value) ? mondayOf(value) : mondayOf(today);
-}
 
 export default async function MenuPage({ searchParams }: PageProps<"/menu">) {
   const today = todayInMadrid();

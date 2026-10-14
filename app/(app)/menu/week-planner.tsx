@@ -2,10 +2,11 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Loader2, Minus, Plus, Sparkles, Trash2, Users } from "lucide-react";
+import { Loader2, Minus, Plus, Sparkles, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { WeekNav } from "@/components/week-nav";
 import type { MenuItemView, RecipeOption } from "@/lib/menu/queries";
 import { DEFAULT_SERVINGS, MEALS, slotKey, type Meal } from "@/lib/menu/schema";
 import { cn } from "@/lib/utils";
@@ -84,22 +85,13 @@ export function WeekPlanner({
     <div className="flex flex-col gap-4">
       <h1 className="font-heading text-2xl font-semibold">Menú semanal</h1>
 
-      <div className="flex items-center justify-between">
-        <Link href={`/menu?semana=${prevWeek}`} className={buttonVariants({ variant: "outline", size: "icon" })} aria-label="Semana anterior">
-          <ChevronLeft />
-        </Link>
-        <div className="flex flex-col items-center">
-          <span className="font-medium">{rangeLabel}</span>
-          {!isCurrentWeek && (
-            <Link href="/menu" className="text-sm text-muted-foreground underline underline-offset-4">
-              Ir a esta semana
-            </Link>
-          )}
-        </div>
-        <Link href={`/menu?semana=${nextWeek}`} className={buttonVariants({ variant: "outline", size: "icon" })} aria-label="Semana siguiente">
-          <ChevronRight />
-        </Link>
-      </div>
+      <WeekNav
+        basePath="/menu"
+        prevWeek={prevWeek}
+        nextWeek={nextWeek}
+        isCurrentWeek={isCurrentWeek}
+        rangeLabel={rangeLabel}
+      />
 
       <div className="grid grid-cols-[1fr_auto] gap-2">
         <Button
