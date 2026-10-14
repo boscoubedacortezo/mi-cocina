@@ -147,7 +147,8 @@ export function CookidooGuide({
         <h1 className="font-heading text-2xl font-semibold">Pasar a Cookidoo</h1>
         <p className="text-muted-foreground">
           En la app: <em>Creadas por mí</em> → crear receta. Copia cada elemento con el botón y
-          márcalo cuando esté hecho.
+          márcalo cuando esté hecho. En los pasos, pega el texto y pon los ajustes con el botón de
+          la hélice: Cookidoo no los lee del texto.
         </p>
         <div className="mt-2 flex items-center justify-between text-sm">
           <span className="text-muted-foreground">
