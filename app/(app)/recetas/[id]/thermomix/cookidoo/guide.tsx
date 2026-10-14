@@ -165,18 +165,19 @@ export function CookidooGuide({
           En la app de Cookidoo: <em>Creadas por mí</em> → crear receta. Copia cada elemento con su
           botón y márcalo cuando esté hecho.
         </p>
-        <p className="text-sm text-muted-foreground">
-          Cookidoo no deja pegar en los pasos, así que cada paso se monta a mano, en este orden:
-        </p>
+        <p className="text-sm text-muted-foreground">Cada paso, en este orden:</p>
         <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-          <li>Texto normal: lo escribes en «Describir paso».</li>
           <li>
-            <Scale className="inline size-4 align-text-bottom" aria-hidden /> Ingrediente: lo eliges
-            en la balanza (lo inserta y lo vincula).
+            Texto: cópialo con su botón y pégalo en «Describir paso». Desde el ordenador se puede
+            pegar; la app del móvil no siempre lo permite.
           </li>
           <li>
-            <Fan className="inline size-4 align-text-bottom" aria-hidden /> Ajustes: los pones con
-            la hélice (los inserta al final).
+            <Scale className="inline size-4 align-text-bottom" aria-hidden /> Ingredientes: si no
+            quedan vinculados al pegar, elígelos en la balanza.
+          </li>
+          <li>
+            <Fan className="inline size-4 align-text-bottom" aria-hidden /> Ajustes: se meten a
+            mano con la hélice, en la pestaña que te indico.
           </li>
         </ul>
         <div className="mt-2 flex items-center justify-between text-sm">
@@ -242,6 +243,7 @@ export function CookidooGuide({
               id={`s${index}`}
               done={done.has(`s${index}`)}
               onToggle={toggle}
+              copy={{ text: step.text, label: `Texto del paso ${index + 1}` }}
             >
               <p className="text-sm text-muted-foreground">Paso {index + 1}</p>
               <p className="leading-8">
