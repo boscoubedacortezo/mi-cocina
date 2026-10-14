@@ -2,7 +2,7 @@ import type { ThermomixStep } from "./schema";
 
 export type HelixPlan = { tab: string; fields: [string, string][]; note?: string };
 
-const SPEEDS_IN_TRITURAR = ["6", "7", "8"];
+const SPEEDS_IN_TRITURAR = ["6", "6.5", "7", "7.5", "8"];
 const SPEEDS_IN_CALENTAR = ["cuchara", "1", "2"];
 
 /**
