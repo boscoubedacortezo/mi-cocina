@@ -41,13 +41,7 @@ type Imported = {
 
 type Photo = { id: string; blob: Blob; ext: string; url: string };
 
-export function NewRecipeFlow({
-  userId,
-  stockPhotos,
-}: {
-  userId: string;
-  stockPhotos: boolean;
-}) {
+export function NewRecipeFlow({ userId }: { userId: string }) {
   const [mode, setMode] = useState<Mode>("manual");
   const [imported, setImported] = useState<Imported | null>(null);
   const [pending, startTransition] = useTransition();
@@ -152,7 +146,6 @@ export function NewRecipeFlow({
           key={imported.id}
           userId={userId}
           sourceType={imported.sourceType}
-          stockPhotos={stockPhotos}
           initial={{ ...imported.draft, image_path: null, image_url: null }}
         />
       </div>
@@ -181,7 +174,7 @@ export function NewRecipeFlow({
       </div>
 
       {mode === "manual" && (
-        <RecipeForm userId={userId} stockPhotos={stockPhotos} />
+        <RecipeForm userId={userId} />
       )}
 
       {mode === "texto" && (

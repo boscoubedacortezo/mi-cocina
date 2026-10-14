@@ -5,7 +5,6 @@ import {
   ArrowDown,
   ArrowUp,
   Camera,
-  ImagePlus,
   Plus,
   Trash2,
   X,
@@ -30,8 +29,6 @@ import { recipeInputSchema } from "@/lib/recipes/schema";
 import { createClient } from "@/lib/supabase/client";
 import { moveItem, selectClass } from "@/lib/utils";
 import { createRecipe, updateRecipe } from "../actions";
-import { importStockPhoto } from "../photo-actions";
-import { StockPhotoPicker } from "./stock-photo-picker";
 
 export type RecipeFormInitial = RecipeDraft & {
   image_path: string | null;
@@ -71,15 +68,12 @@ export function RecipeForm({
   recipeId,
   sourceType = "manual",
   initial,
-  stockPhotos = false,
 }: {
   userId: string;
   /** Set when editing an existing recipe; omitted when creating one. */
   recipeId?: string;
   sourceType?: SourceType;
   initial?: RecipeFormInitial;
-  /** Offer suggested stock photos (needs PEXELS_API_KEY on the server). */
-  stockPhotos?: boolean;
 }) {
   const formId = useId();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -115,9 +109,6 @@ export function RecipeForm({
   // Photo: the stored path is kept until a new one is uploaded on save.
   const [imagePath, setImagePath] = useState(initial?.image_path ?? null);
   const [preview, setPreview] = useState(initial?.image_url ?? null);
-  // A stock photo is only copied into storage when the recipe is saved.
-  const [stock, setStock] = useState<{ url: string } | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [newImage, setNewImage] = useState<{ blob: Blob; ext: string } | null>(
     null,
   );
@@ -134,34 +125,15 @@ export function RecipeForm({
       const prepared = await prepareImage(file);
       if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
       setNewImage(prepared);
-      setStock(null);
       setPreview(URL.createObjectURL(prepared.blob));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Imagen no válida.");
     }
   }
 
-  function chooseStock(photo: { large: string; thumb: string }) {
-    if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
-    setNewImage(null);
-    if (fileInput.current) fileInput.current.value = "";
-    setStock({ url: photo.large });
-    setPreview(photo.thumb);
-    setPickerOpen(false);
-  }
-
-  function suggestPhoto() {
-    if (!title.trim()) {
-      toast.error("Escribe primero el título de la receta.");
-      return;
-    }
-    setPickerOpen(true);
-  }
-
   function removeImage() {
     if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
     setNewImage(null);
-    setStock(null);
     setPreview(null);
     setImagePath(null);
     if (fileInput.current) fileInput.current.value = "";
@@ -228,14 +200,6 @@ export function RecipeForm({
         }
         uploadedPath = path;
         payload.image_path = path;
-      } else if (stock) {
-        const imported = await importStockPhoto(stock.url);
-        if (!imported.ok) {
-          toast.error(imported.error);
-          return;
-        }
-        uploadedPath = imported.path;
-        payload.image_path = imported.path;
       }
 
       // On success the action redirects, so it only returns when it failed.
@@ -298,20 +262,7 @@ export function RecipeForm({
             Cambiar foto
           </Button>
         )}
-        {stockPhotos && (
-          <Button type="button" variant="outline" onClick={suggestPhoto}>
-            <ImagePlus /> {preview ? "Sugerir otra foto" : "Sugerir una foto"}
-          </Button>
-        )}
       </section>
-      {pickerOpen && (
-        <StockPhotoPicker
-          title={title.trim()}
-          tags={tags}
-          onSelect={chooseStock}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
 
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">

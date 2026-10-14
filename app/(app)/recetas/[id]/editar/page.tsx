@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth-server";
 import { getRecipe } from "@/lib/recipes/queries";
-import { stockPhotosEnabled } from "@/lib/stock-photos";
 import { RecipeForm } from "../../_components/recipe-form";
 
 export const metadata: Metadata = { title: "Editar receta" };
@@ -19,7 +18,6 @@ export default async function EditRecipePage({
         recipeId={recipe.id}
         sourceType={recipe.source_type}
         initial={recipe}
-        stockPhotos={stockPhotosEnabled()}
       />
     </div>
   );
