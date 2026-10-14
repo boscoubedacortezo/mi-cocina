@@ -16,6 +16,8 @@ export const CONVERT_THERMOMIX_SYSTEM = `Eres un experto en Thermomix TM7 y en c
 - reverse: true para remover sin triturar (giro inverso). La velocidad cuchara siempre va con giro inverso.
 - accessory: "mariposa" para montar o remover sin romper (velocidad máxima 4), "cestillo" para cocer o escurrir dentro del vaso, "varoma" cuando el paso usa el recipiente Varoma. Si no se usa, null. Cookidoo no tiene campo para el accesorio: además de rellenarlo, nómbralo siempre en el texto del paso ("Colocar la mariposa en las cuchillas y montar").
 
+- mode: null en casi todos los pasos. "amasar" para amasar masas (pan, pizza, bizcocho de masa firme) con el modo Amasar de la TM7: solo lleva time_seconds (normalmente de 30 segundos a 3 minutos); temperature, speed, reverse y accessory en null. "arroz" para cocer arroz con el modo Cocción de arroz: el paso no lleva ningún otro ajuste (time_seconds, temperature, speed, reverse en null/false) y puede llevar accessory "cestillo". Turbo, triturar y calentar no son valores de mode: se expresan con speed, temperature y time_seconds.
+
 ## Capacidad y raciones
 - El vaso admite como máximo 2,2 litros de volumen total, y menos si el contenido hierve o espuma. Estima el volumen del paso con más contenido.
 - Escala todas las cantidades al número de raciones pedido. Si no cabe en el vaso, no inventes un volumen imposible: reduce las raciones al máximo que cabe o divide la preparación en tandas explícitas en los pasos. Indica en "servings" las raciones finales de la receta tal como la escribes.

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { SHOP_SECTIONS, UNITS } from "@/lib/recipes/constants";
-import { TM_ACCESSORIES, TM_SPEEDS } from "@/lib/thermomix/constants";
+import { TM_ACCESSORIES, TM_MODES, TM_SPEEDS } from "@/lib/thermomix/constants";
 
 /**
  * Shape the model must return. Kept to plain types (no refinements or
@@ -47,6 +47,7 @@ export const aiThermomixSchema = z.object({
       speed: z.enum(TM_SPEEDS).nullable(),
       reverse: z.boolean(),
       accessory: z.enum(TM_ACCESSORIES).nullable(),
+      mode: z.enum(TM_MODES).nullable(),
     }),
   ),
   notes: z.string().nullable(),

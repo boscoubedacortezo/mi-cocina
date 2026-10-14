@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   TM_ACCESSORIES,
   TM_MAX_SECONDS,
+  TM_MODES,
   TM_SPEEDS,
   TM_TEMPERATURES,
 } from "./constants";
@@ -23,6 +24,8 @@ export const thermomixStepSchema = z.object({
   speed: z.enum(TM_SPEEDS).nullable(),
   reverse: z.boolean(),
   accessory: z.enum(TM_ACCESSORIES).nullable(),
+  // Versions saved before modes existed have no value: read them as "no mode".
+  mode: z.enum(TM_MODES).nullable().default(null),
 });
 
 export const thermomixInputSchema = z.object({

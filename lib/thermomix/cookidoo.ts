@@ -1,3 +1,4 @@
+import { TM_MODE_LABELS } from "./constants";
 import type { ThermomixStep } from "./schema";
 
 export function formatTime(totalSeconds: number) {
@@ -9,7 +10,13 @@ export function formatTime(totalSeconds: number) {
 
 /** Machine settings of a step, in Cookidoo order: time / temp / speed / reverse / accessory. */
 export function stepSettings(step: ThermomixStep) {
+  if (step.mode === "arroz") return [TM_MODE_LABELS.arroz];
   const parts: string[] = [];
+  if (step.mode === "amasar") {
+    parts.push(TM_MODE_LABELS.amasar);
+    if (step.time_seconds) parts.push(formatTime(step.time_seconds));
+    return parts;
+  }
   if (step.time_seconds) parts.push(formatTime(step.time_seconds));
   if (step.temperature !== null) {
     parts.push(step.temperature === "Varoma" ? "Varoma" : `${step.temperature} °C`);

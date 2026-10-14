@@ -27,3 +27,15 @@ export const TM_MAX_SECONDS = 99 * 60;
 
 /** The butterfly whisk is only safe up to speed 4. */
 export const TM_BUTTERFLY_MAX_SPEED = 4;
+
+/**
+ * Cookidoo preset modes that cannot be inferred from the other settings.
+ * Turbo, Triturar and Calentar are derived from them (see helix.ts).
+ */
+export const TM_MODES = ["amasar", "arroz"] as const;
+export type TmMode = (typeof TM_MODES)[number];
+
+export const TM_MODE_LABELS: Record<TmMode, string> = {
+  amasar: "Amasar",
+  arroz: "Cocción de arroz",
+};

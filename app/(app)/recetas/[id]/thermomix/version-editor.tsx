@@ -10,9 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   TM_ACCESSORIES,
+  TM_MODE_LABELS,
+  TM_MODES,
   TM_SPEEDS,
   TM_TEMPERATURES,
   type TmAccessory,
+  type TmMode,
   type TmSpeed,
 } from "@/lib/thermomix/constants";
 import { thermomixInputSchema, type ThermomixStep } from "@/lib/thermomix/schema";
@@ -29,6 +32,7 @@ type Row = {
   speed: TmSpeed | "";
   reverse: boolean;
   accessory: TmAccessory | "";
+  mode: TmMode | "";
 };
 
 const newKey = () => crypto.randomUUID();
@@ -42,6 +46,7 @@ const emptyRow = (): Row => ({
   speed: "",
   reverse: false,
   accessory: "",
+  mode: "",
 });
 
 function toRow(step: ThermomixStep): Row {
@@ -54,6 +59,7 @@ function toRow(step: ThermomixStep): Row {
     speed: step.speed ?? "",
     reverse: step.reverse,
     accessory: step.accessory ?? "",
+    mode: step.mode ?? "",
   };
 }
 
@@ -100,16 +106,19 @@ export function VersionEditor({
         .filter(({ row }) => row.text.trim())
         .map(({ row, seconds }) => ({
           text: row.text,
-          time_seconds: seconds > 0 ? Math.round(seconds) : null,
+          // Amasar only takes a time; Cocción de arroz takes nothing.
+          time_seconds:
+            row.mode !== "arroz" && seconds > 0 ? Math.round(seconds) : null,
           temperature:
-            row.temperature === ""
+            row.mode !== "" || row.temperature === ""
               ? null
               : row.temperature === "Varoma"
                 ? "Varoma"
                 : Number(row.temperature),
-          speed: row.speed || null,
-          reverse: row.reverse || row.speed === "cuchara",
-          accessory: row.accessory || null,
+          speed: row.mode !== "" ? null : row.speed || null,
+          reverse: row.mode === "" && (row.reverse || row.speed === "cuchara"),
+          accessory: row.mode === "amasar" ? null : row.accessory || null,
+          mode: row.mode || null,
         })),
     });
     if (!parsed.success) {
@@ -166,9 +175,32 @@ export function VersionEditor({
                 rows={3}
                 maxLength={2000}
               />
+              <select
+                value={row.mode}
+                onChange={(e) => {
+                  const mode = e.target.value as TmMode | "";
+                  update(row.key, {
+                    mode,
+                    ...(mode
+                      ? { temperature: "", speed: "", reverse: false, accessory: "" }
+                      : {}),
+                    ...(mode === "arroz" ? { minutes: "", seconds: "" } : {}),
+                  });
+                }}
+                className={selectClass}
+                aria-label="Modo"
+              >
+                <option value="">Sin modo (ajustes manuales)</option>
+                {TM_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    Modo {TM_MODE_LABELS[mode]}
+                  </option>
+                ))}
+              </select>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex gap-2">
                   <Input
+                    disabled={row.mode === "arroz"}
                     value={row.minutes}
                     onChange={(e) => update(row.key, { minutes: e.target.value })}
                     inputMode="numeric"
@@ -176,6 +208,7 @@ export function VersionEditor({
                     aria-label="Minutos"
                   />
                   <Input
+                    disabled={row.mode === "arroz"}
                     value={row.seconds}
                     onChange={(e) => update(row.key, { seconds: e.target.value })}
                     inputMode="numeric"
@@ -187,6 +220,7 @@ export function VersionEditor({
                   value={row.temperature}
                   onChange={(e) => update(row.key, { temperature: e.target.value })}
                   className={selectClass}
+                  disabled={row.mode !== ""}
                   aria-label="Temperatura"
                 >
                   <option value="">Sin temperatura</option>
@@ -207,6 +241,7 @@ export function VersionEditor({
                     });
                   }}
                   className={selectClass}
+                  disabled={row.mode !== ""}
                   aria-label="Velocidad"
                 >
                   <option value="">Sin velocidad</option>
@@ -222,6 +257,7 @@ export function VersionEditor({
                     update(row.key, { accessory: e.target.value as TmAccessory | "" })
                   }
                   className={selectClass}
+                  disabled={row.mode !== ""}
                   aria-label="Accesorio"
                 >
                   <option value="">Sin accesorio</option>
@@ -237,7 +273,7 @@ export function VersionEditor({
                   <input
                     type="checkbox"
                     checked={row.reverse || row.speed === "cuchara"}
-                    disabled={row.speed === "cuchara"}
+                    disabled={row.speed === "cuchara" || row.mode !== ""}
                     onChange={(e) => update(row.key, { reverse: e.target.checked })}
                     className="size-4"
                   />

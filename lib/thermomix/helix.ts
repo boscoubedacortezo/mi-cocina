@@ -11,6 +11,24 @@ const SPEEDS_IN_CALENTAR = ["cuchara", "1", "2"];
  */
 export function helixPlan(step: ThermomixStep): HelixPlan {
   const { time_seconds: time, temperature, speed } = step;
+
+  if (step.mode === "amasar") {
+    return {
+      tab: "Modos › Amasar",
+      fields: [
+        ["Minutos", String(Math.floor((time ?? 0) / 60))],
+        ["Segundos", String((time ?? 0) % 60)],
+      ],
+    };
+  }
+  if (step.mode === "arroz") {
+    return {
+      tab: "Modos › Cocción de arroz",
+      fields: [],
+      note: "Este modo no tiene selectores: solo elige «Cocción de arroz».",
+    };
+  }
+
   const plain = !step.reverse && !step.accessory;
 
   // Turbo is a mode, not a manual speed, and only takes 0.5, 1 or 2 seconds.

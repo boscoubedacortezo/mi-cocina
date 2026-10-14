@@ -52,6 +52,32 @@ function toThermomixDraft(ai: AiThermomix): ThermomixDraft {
       ) {
         speed = String(TM_BUTTERFLY_MAX_SPEED) as ThermomixStep["speed"];
       }
+      if (step.mode === "arroz") {
+        // Cocción de arroz takes no selectors.
+        return {
+          text: step.text.trim().slice(0, 2000),
+          time_seconds: null,
+          temperature: null,
+          speed: null,
+          reverse: false,
+          accessory: step.accessory === "cestillo" ? "cestillo" : null,
+          mode: "arroz",
+        };
+      }
+      if (step.mode === "amasar") {
+        // Amasar takes only minutes and seconds.
+        return {
+          text: step.text.trim().slice(0, 2000),
+          time_seconds: step.time_seconds
+            ? Math.min(Math.max(step.time_seconds, 1), TM_MAX_SECONDS)
+            : null,
+          temperature: null,
+          speed: null,
+          reverse: false,
+          accessory: null,
+          mode: "amasar",
+        };
+      }
       return {
         text: step.text.trim().slice(0, 2000),
         time_seconds:
@@ -68,6 +94,7 @@ function toThermomixDraft(ai: AiThermomix): ThermomixDraft {
         // Spoon speed only exists in reverse.
         reverse: step.reverse || speed === "cuchara",
         accessory: step.accessory,
+        mode: null,
       };
     })
     .filter((step) => step.text);
