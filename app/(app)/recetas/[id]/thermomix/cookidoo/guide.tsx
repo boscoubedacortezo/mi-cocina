@@ -268,7 +268,7 @@ export function CookidooGuide({
                   </>
                 )}
               </p>
-              {helix.fields.length > 0 && (
+              {(helix.fields.length > 0 || helix.note) && (
                 <div className="mt-3">
                   <p className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Fan className="size-3.5" aria-hidden /> Hélice → pestaña{" "}
@@ -282,6 +282,7 @@ export function CookidooGuide({
                       </div>
                     ))}
                   </dl>
+                  {helix.note && <p className="mt-2 text-sm text-muted-foreground">{helix.note}</p>}
                 </div>
               )}
             </Item>

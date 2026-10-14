@@ -16,7 +16,7 @@ export type TmSpeed = (typeof TM_SPEEDS)[number];
 
 /** Temperatures in °C; "Varoma" is handled separately. */
 export const TM_TEMPERATURES = [
-  37, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120,
+  37, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 98, 100, 105, 110, 115, 120,
 ] as const;
 
 export const TM_ACCESSORIES = ["mariposa", "cestillo", "varoma"] as const;

@@ -41,7 +41,7 @@ export const aiThermomixSchema = z.object({
       temperature: z
         .enum([
           "37", "40", "45", "50", "55", "60", "65", "70", "75", "80", "85",
-          "90", "95", "100", "105", "110", "115", "120", "Varoma",
+          "90", "95", "98", "100", "105", "110", "115", "120", "Varoma",
         ])
         .nullable(),
       speed: z.enum(TM_SPEEDS).nullable(),

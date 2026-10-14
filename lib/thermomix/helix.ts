@@ -1,6 +1,6 @@
 import type { ThermomixStep } from "./schema";
 
-export type HelixPlan = { tab: string; fields: [string, string][] };
+export type HelixPlan = { tab: string; fields: [string, string][]; note?: string };
 
 const SPEEDS_IN_TRITURAR = ["6", "7", "8"];
 const SPEEDS_IN_CALENTAR = ["cuchara", "1", "2"];
@@ -13,8 +13,17 @@ export function helixPlan(step: ThermomixStep): HelixPlan {
   const { time_seconds: time, temperature, speed } = step;
   const plain = !step.reverse && !step.accessory;
 
-  if (speed === "turbo" && temperature === null && time !== null && time <= 2 && plain) {
-    return { tab: "Modos › Turbo", fields: [["Duración", `${time} seg`]] };
+  // Turbo is a mode, not a manual speed, and only takes 0.5, 1 or 2 seconds.
+  if (speed === "turbo") {
+    const seconds = Math.min(time ?? 1, 2);
+    return {
+      tab: "Modos › Turbo",
+      fields: [["Duración", `${seconds} seg`]],
+      note:
+        time !== null && time > 2
+          ? "Turbo solo admite 0,5, 1 o 2 seg: repite el pulso las veces que haga falta."
+          : undefined,
+    };
   }
   if (
     time !== null &&
@@ -43,7 +52,7 @@ export function helixPlan(step: ThermomixStep): HelixPlan {
     return {
       tab: "Modos › Calentar",
       fields: [
-        ["Temperatura", `${temperature} °C`],
+        ["Temperatura", `${temperature}°`],
         ["Velocidad", speed],
       ],
     };
@@ -55,10 +64,16 @@ export function helixPlan(step: ThermomixStep): HelixPlan {
     fields.push(["Segundos", String(time % 60)]);
   }
   if (temperature !== null) {
-    fields.push(["Temperatura", temperature === "Varoma" ? "Varoma" : `${temperature} °C`]);
+    fields.push(["Temperatura", temperature === "Varoma" ? "Varoma" : `${temperature}°`]);
   }
-  if (speed) fields.push(["Velocidad", speed === "turbo" ? "Turbo" : speed]);
+  if (speed) fields.push(["Velocidad", speed === "cuchara" ? "Cuchara" : speed]);
+  // Direction is picked inside the speed selector ("Inverso" / "Normal").
   if (step.reverse) fields.push(["Giro", "Inverso"]);
-  if (step.accessory) fields.push(["Accesorio", step.accessory]);
-  return { tab: "Manual", fields };
+  return {
+    tab: "Manual",
+    fields,
+    note: step.accessory
+      ? `Accesorio (${step.accessory}): Cookidoo no tiene campo para él, escríbelo en el texto del paso.`
+      : undefined,
+  };
 }
