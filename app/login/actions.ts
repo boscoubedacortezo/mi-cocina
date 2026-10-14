@@ -1,9 +1,9 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { isAllowedEmail } from "@/lib/auth";
+import { getOrigin } from "@/lib/origin";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = {
@@ -88,13 +88,4 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
-}
-
-async function getOrigin() {
-  const h = await headers();
-  const origin = h.get("origin");
-  if (origin) return origin;
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  return `${proto}://${host}`;
 }

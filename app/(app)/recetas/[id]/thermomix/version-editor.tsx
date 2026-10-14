@@ -73,6 +73,7 @@ export function VersionEditor({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [servings, setServings] = useState(String(version.servings));
   const [ingredients, setIngredients] = useState(version.ingredients_text);
   const [rows, setRows] = useState<Row[]>(
     version.steps.length ? version.steps.map(toRow) : [emptyRow()],
@@ -92,6 +93,7 @@ export function VersionEditor({
     }
 
     const parsed = thermomixInputSchema.safeParse({
+      servings: servings.trim() === "" ? undefined : Number(servings),
       ingredients_text: ingredients,
       steps: rows
         .map((row, i) => ({ row, seconds: times[i] }))
@@ -129,6 +131,17 @@ export function VersionEditor({
 
   return (
     <form onSubmit={save} className="flex flex-col gap-6" noValidate>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="tm-servings">Raciones</Label>
+        <Input
+          id="tm-servings"
+          inputMode="numeric"
+          value={servings}
+          onChange={(e) => setServings(e.target.value)}
+          className="w-28"
+        />
+      </div>
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="tm-ingredients">Ingredientes (uno por línea)</Label>
         <Textarea

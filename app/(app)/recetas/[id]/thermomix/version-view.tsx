@@ -5,16 +5,20 @@ import { ClipboardCopy, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatMinutes } from "@/lib/recipes/format";
 import {
   buildIngredientsBlock,
   buildStepsBlock,
   stepSettings,
 } from "@/lib/thermomix/cookidoo";
 import type { ThermomixStep } from "@/lib/thermomix/schema";
+import { CookidooLink } from "./cookidoo-link";
 import { VersionEditor } from "./version-editor";
 
 export type VersionData = {
   id: string;
+  servings: number;
+  notes: string | null;
   ingredients_text: string;
   steps: ThermomixStep[];
   cookidoo_text: string;
@@ -32,9 +36,13 @@ async function copy(text: string, label: string) {
 export function VersionView({
   recipeId,
   version,
+  prepMinutes,
+  totalMinutes,
 }: {
   recipeId: string;
   version: VersionData;
+  prepMinutes: number | null;
+  totalMinutes: number | null;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -87,6 +95,27 @@ export function VersionView({
           Cookidoo tiene campos separados para ingredientes y pasos: puedes copiar cada parte por separado.
         </p>
       </div>
+
+      <CookidooLink recipeId={recipeId} />
+
+      {version.notes && (
+        <p className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+          <strong>Adaptación:</strong> {version.notes}
+        </p>
+      )}
+
+      <dl className="grid grid-cols-3 gap-2 text-center">
+        {[
+          ["Raciones", String(version.servings)],
+          ["Preparación", formatMinutes(prepMinutes) ?? "—"],
+          ["Tiempo total", formatMinutes(totalMinutes) ?? "—"],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-xl border p-2">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="font-medium">{value}</dd>
+          </div>
+        ))}
+      </dl>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-lg font-semibold">Ingredientes</h2>

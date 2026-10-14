@@ -45,3 +45,13 @@ export function buildStepsBlock(steps: ThermomixStep[]) {
 export function buildCookidooText(ingredientsText: string, steps: ThermomixStep[]) {
   return `Ingredientes\n${buildIngredientsBlock(ingredientsText)}\n\nPasos\n${buildStepsBlock(steps)}`;
 }
+
+/**
+ * Settings in Cookidoo's own compact notation ("5 min/100°C/vel 1/giro inverso"),
+ * used on the public page so Cookidoo's importer can recognise them.
+ */
+export function compactSettings(step: ThermomixStep) {
+  return stepSettings(step)
+    .map((part) => part.replace(" °C", "°C"))
+    .join("/");
+}

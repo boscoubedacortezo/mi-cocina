@@ -5,6 +5,9 @@ import { thermomixStepSchema, type ThermomixStep } from "./schema";
 
 export type ThermomixVersion = {
   id: string;
+  /** Null for versions saved before servings were stored. */
+  servings: number | null;
+  notes: string | null;
   ingredients_text: string;
   steps: ThermomixStep[];
   cookidoo_text: string;
@@ -16,7 +19,7 @@ export async function getThermomixVersion(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("thermomix_versions")
-    .select("id, ingredients_text, steps, cookidoo_text")
+    .select("id, servings, notes, ingredients_text, steps, cookidoo_text")
     .eq("recipe_id", recipeId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -28,6 +31,8 @@ export async function getThermomixVersion(
   if (!steps.success) throw new Error("La versión Thermomix guardada no es válida.");
   return {
     id: data.id,
+    servings: data.servings,
+    notes: data.notes,
     ingredients_text: data.ingredients_text,
     steps: steps.data,
     cookidoo_text: data.cookidoo_text ?? "",

@@ -37,10 +37,7 @@ export function ConvertPanel({
         toast.error(result.error);
         return;
       }
-      toast.success("Receta convertida a TM7", {
-        description: result.notes ?? undefined,
-        duration: result.notes ? 20_000 : 4_000,
-      });
+      toast.success("Receta convertida a TM7");
       router.refresh();
     });
   }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getRecipe } from "@/lib/recipes/queries";
+import { resolveCookMinutes } from "@/lib/share/recipe-jsonld";
 import { getThermomixVersion } from "@/lib/thermomix/queries";
 import { ConvertPanel } from "./convert-panel";
 import { VersionView } from "./version-view";
@@ -36,7 +37,16 @@ export default async function ThermomixPage({
 
       {version ? (
         <>
-          <VersionView recipeId={recipe.id} version={version} />
+          <VersionView
+            recipeId={recipe.id}
+            version={{ ...version, servings: version.servings ?? recipe.servings }}
+            prepMinutes={recipe.prep_minutes}
+            totalMinutes={
+              (recipe.prep_minutes ?? 0) +
+                (resolveCookMinutes({ cookMinutes: recipe.cook_minutes, steps: version.steps }) ?? 0) ||
+              null
+            }
+          />
           <details className="rounded-xl border p-4">
             <summary className="cursor-pointer text-sm font-medium">
               Volver a convertir con otras raciones

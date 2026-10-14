@@ -26,6 +26,11 @@ export const thermomixStepSchema = z.object({
 });
 
 export const thermomixInputSchema = z.object({
+  servings: z
+    .number("Indica las raciones.")
+    .int("Las raciones deben ser un número entero.")
+    .min(1, "Mínimo 1 ración.")
+    .max(100, "Máximo 100 raciones."),
   ingredients_text: z.string().trim().max(5000),
   steps: z.array(thermomixStepSchema).max(100),
 });
