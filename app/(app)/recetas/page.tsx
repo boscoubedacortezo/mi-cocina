@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Clock, Plus, Search, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { RecipePlaceholder } from "@/components/recipe-placeholder";
 import { Input } from "@/components/ui/input";
 import { formatMinutes } from "@/lib/recipes/format";
 import { listAllTags, listRecipes } from "@/lib/recipes/queries";
@@ -106,8 +107,8 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                   href={`/recetas/${recipe.id}`}
                   className="flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-accent/40"
                 >
-                  <div className="relative aspect-[16/9] bg-muted">
-                    {recipe.image_url && (
+                  {recipe.image_url ? (
+                    <div className="relative aspect-[16/9] bg-muted">
                       <Image
                         src={recipe.image_url}
                         alt=""
@@ -116,8 +117,10 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                         className="object-cover"
                         unoptimized
                       />
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <RecipePlaceholder recipe={recipe} className="aspect-[16/9]" />
+                  )}
                   <div className="flex flex-col gap-2 p-3">
                     <h2 className="font-heading leading-snug font-medium">
                       {recipe.title}

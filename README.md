@@ -24,6 +24,10 @@ npm run dev                  # http://localhost:3000
 <p>O escribe este código en la app: <strong>{{ .Token }}</strong></p>
 ```
 
+## Fotos sugeridas (opcional)
+
+Las recetas sin foto muestran una imagen de relleno. Si añades `PEXELS_API_KEY` (clave gratuita en https://www.pexels.com/api/), el formulario ofrece **Sugerir una foto** con fotos de Pexels. Sin la clave, el botón no aparece.
+
 ## Despliegue
 
 Vercel conectado al repo de GitHub, con las variables de `.env.example` configuradas en el proyecto.

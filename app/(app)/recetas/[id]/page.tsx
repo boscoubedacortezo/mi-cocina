@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { RecipePlaceholder } from "@/components/recipe-placeholder";
 import { formatIngredient, formatMinutes } from "@/lib/recipes/format";
 import { getRecipe } from "@/lib/recipes/queries";
 import { hasThermomixVersion } from "@/lib/thermomix/queries";
@@ -40,7 +41,7 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
         <ArrowLeft className="size-4" aria-hidden /> Recetas
       </Link>
 
-      {recipe.image_url && (
+      {recipe.image_url ? (
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-muted">
           <Image
             src={recipe.image_url}
@@ -52,6 +53,8 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
             unoptimized
           />
         </div>
+      ) : (
+        <RecipePlaceholder recipe={recipe} className="aspect-[16/9] rounded-xl" />
       )}
 
       <header className="flex flex-col gap-3">
