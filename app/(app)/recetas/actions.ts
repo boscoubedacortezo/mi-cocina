@@ -21,7 +21,7 @@ export async function createRecipe(input: unknown): Promise<ActionResult> {
 
   const { data, error } = await supabase
     .from("recipes")
-    .insert({ ...recipe, source_type: "manual" })
+    .insert(recipe)
     .select("id")
     .single();
   if (error) return { error: GENERIC_ERROR };

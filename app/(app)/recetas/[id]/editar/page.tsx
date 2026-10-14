@@ -13,7 +13,12 @@ export default async function EditRecipePage({
   return (
     <div className="flex flex-col gap-4">
       <h1 className="font-heading text-2xl font-semibold">Editar receta</h1>
-      <RecipeForm userId={userId} initial={recipe} />
+      <RecipeForm
+        userId={userId}
+        recipeId={recipe.id}
+        sourceType={recipe.source_type}
+        initial={recipe}
+      />
     </div>
   );
 }

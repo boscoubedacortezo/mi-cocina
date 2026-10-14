@@ -21,32 +21,17 @@ import {
   SHOP_SECTIONS,
   UNITS,
   type ShopSection,
+  type SourceType,
   type Unit,
 } from "@/lib/recipes/constants";
+import type { RecipeDraft } from "@/lib/recipes/draft";
 import { recipeInputSchema } from "@/lib/recipes/schema";
 import { createClient } from "@/lib/supabase/client";
 import { createRecipe, updateRecipe } from "../actions";
 
-export type RecipeFormInitial = {
-  id: string;
-  title: string;
-  description: string | null;
-  servings: number;
-  prep_minutes: number | null;
-  cook_minutes: number | null;
-  tags: string[];
-  source_url: string | null;
-  notes: string | null;
+export type RecipeFormInitial = RecipeDraft & {
   image_path: string | null;
   image_url: string | null;
-  ingredients: {
-    name: string;
-    quantity: number | null;
-    unit: Unit | null;
-    shop_section: ShopSection;
-    optional: boolean;
-  }[];
-  steps: { text: string }[];
 };
 
 type IngredientRow = {
@@ -89,9 +74,14 @@ function move<T>(list: T[], from: number, to: number) {
 
 export function RecipeForm({
   userId,
+  recipeId,
+  sourceType = "manual",
   initial,
 }: {
   userId: string;
+  /** Set when editing an existing recipe; omitted when creating one. */
+  recipeId?: string;
+  sourceType?: SourceType;
   initial?: RecipeFormInitial;
 }) {
   const formId = useId();
@@ -181,6 +171,7 @@ export function RecipeForm({
       prep_minutes: minutes[0],
       cook_minutes: minutes[1],
       tags,
+      source_type: sourceType,
       source_url: sourceUrl,
       notes,
       image_path: imagePath,
@@ -221,8 +212,8 @@ export function RecipeForm({
       }
 
       // On success the action redirects, so it only returns when it failed.
-      const result = initial
-        ? await updateRecipe(initial.id, payload)
+      const result = recipeId
+        ? await updateRecipe(recipeId, payload)
         : await createRecipe(payload);
       if (result?.error) {
         toast.error(result.error);
@@ -572,7 +563,7 @@ export function RecipeForm({
       </section>
 
       <Button type="submit" size="lg" disabled={pending}>
-        {pending ? "Guardando…" : initial ? "Guardar cambios" : "Crear receta"}
+        {pending ? "Guardando…" : recipeId ? "Guardar cambios" : "Crear receta"}
       </Button>
     </form>
   );
