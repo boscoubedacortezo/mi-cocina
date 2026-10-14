@@ -16,6 +16,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: { default: "Mi Cocina", template: "%s · Mi Cocina" },
   description: "Recetas, conversión a Thermomix, menú semanal y lista de la compra.",
+  applicationName: "Mi Cocina",
+  // Fixed files in /public: the login proxy lets .png through, so phones can
+  // fetch them without a session (generated /icon routes would redirect to login).
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: { capable: true, title: "Mi Cocina", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

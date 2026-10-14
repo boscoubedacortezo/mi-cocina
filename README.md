@@ -27,3 +27,11 @@ npm run dev                  # http://localhost:3000
 ## Despliegue
 
 Vercel conectado al repo de GitHub, con las variables de `.env.example` configuradas en el proyecto.
+
+## Instalar en el móvil (PWA)
+
+- **Android / Chrome**: menú ⋮ → *Instalar aplicación* (o el aviso que aparece abajo).
+- **iPhone / Safari**: botón compartir → *Añadir a pantalla de inicio*.
+- **Ordenador (Chrome)**: icono de instalar en la barra de direcciones.
+
+La app necesita conexión: no guarda datos sin conexión. El inicio de sesión desde la app instalada se hace con el **código de 6 dígitos** del correo (el enlace se abre en el navegador).
