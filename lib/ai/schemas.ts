@@ -54,3 +54,16 @@ export const aiThermomixSchema = z.object({
 });
 
 export type AiThermomix = z.infer<typeof aiThermomixSchema>;
+
+/** Weekly menu proposal: one entry per empty slot, null when nothing fits. */
+export const aiMenuSchema = z.object({
+  assignments: z.array(
+    z.object({
+      slot: z.string(),
+      recipe_id: z.string().nullable(),
+    }),
+  ),
+  notes: z.string().nullable(),
+});
+
+export type AiMenu = z.infer<typeof aiMenuSchema>;
