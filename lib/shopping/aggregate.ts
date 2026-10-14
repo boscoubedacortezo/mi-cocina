@@ -4,6 +4,7 @@ import {
   type Unit,
 } from "@/lib/recipes/constants";
 import { normalizeName } from "./normalize";
+import { UNIT_WEIGHTS } from "./unit-weights";
 
 export type SourceIngredient = {
   name: string;
@@ -91,6 +92,19 @@ export function aggregateIngredients(
     }
   }
 
+  // "2 ud" + "200 g" of a product with a known piece weight are one count.
+  for (const [key, line] of [...lines]) {
+    if (line.family !== "mass") continue;
+    const normalized = key.slice(0, key.lastIndexOf("|"));
+    const weight = UNIT_WEIGHTS[normalized];
+    const pieces = lines.get(`${normalized}|ud`);
+    if (!weight || !pieces) continue;
+    pieces.base += line.base / weight;
+    pieces.hasQuantity = true;
+    if (pieces.section === "Otros") pieces.section = line.section;
+    lines.delete(key);
+  }
+
   return [...lines.entries()]
     .map(([key, line]): ShoppingLine => {
       const base = { key, name: line.name, shop_section: line.section };
@@ -106,7 +120,14 @@ export function aggregateIngredients(
       if (line.family === "none") {
         return { ...base, quantity: line.hasQuantity ? round(line.base) : null, unit: null };
       }
-      return { ...base, quantity: line.hasQuantity ? round(line.base) : null, unit: line.hasQuantity ? line.family : null };
+      // Whole pieces are bought, so a count is rounded up once everything is summed.
+      const quantity =
+        line.family === "ud" ? Math.ceil(round(line.base)) : round(line.base);
+      return {
+        ...base,
+        quantity: line.hasQuantity ? quantity : null,
+        unit: line.hasQuantity ? line.family : null,
+      };
     })
     .sort(
       (a, b) =>
