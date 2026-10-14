@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SHOP_SECTIONS, UNITS } from "@/lib/recipes/constants";
+import { TM_ACCESSORIES, TM_SPEEDS } from "@/lib/thermomix/constants";
 
 /**
  * Shape the model must return. Kept to plain types (no refinements or
@@ -28,3 +29,27 @@ export const aiRecipeSchema = z.object({
 });
 
 export type AiRecipe = z.infer<typeof aiRecipeSchema>;
+
+/** Thermomix conversion. Temperatures are strings so they fit a plain enum. */
+export const aiThermomixSchema = z.object({
+  servings: z.number().int(),
+  ingredients: z.array(z.string()),
+  steps: z.array(
+    z.object({
+      text: z.string(),
+      time_seconds: z.number().int().nullable(),
+      temperature: z
+        .enum([
+          "37", "40", "45", "50", "55", "60", "65", "70", "75", "80", "85",
+          "90", "95", "100", "105", "110", "115", "120", "Varoma",
+        ])
+        .nullable(),
+      speed: z.enum(TM_SPEEDS).nullable(),
+      reverse: z.boolean(),
+      accessory: z.enum(TM_ACCESSORIES).nullable(),
+    }),
+  ),
+  notes: z.string().nullable(),
+});
+
+export type AiThermomix = z.infer<typeof aiThermomixSchema>;

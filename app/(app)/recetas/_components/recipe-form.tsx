@@ -27,6 +27,7 @@ import {
 import type { RecipeDraft } from "@/lib/recipes/draft";
 import { recipeInputSchema } from "@/lib/recipes/schema";
 import { createClient } from "@/lib/supabase/client";
+import { moveItem, selectClass } from "@/lib/utils";
 import { createRecipe, updateRecipe } from "../actions";
 
 export type RecipeFormInitial = RecipeDraft & {
@@ -44,9 +45,6 @@ type IngredientRow = {
 };
 type StepRow = { key: string; text: string };
 
-const selectClass =
-  "h-9 w-full rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
-
 const newKey = () => crypto.randomUUID();
 
 const emptyIngredient = (): IngredientRow => ({
@@ -63,13 +61,6 @@ function toNumber(value: string) {
   if (trimmed === "") return null;
   const n = Number(trimmed);
   return Number.isFinite(n) ? n : Number.NaN;
-}
-
-function move<T>(list: T[], from: number, to: number) {
-  if (to < 0 || to >= list.length) return list;
-  const next = [...list];
-  next.splice(to, 0, next.splice(from, 1)[0]);
-  return next;
 }
 
 export function RecipeForm({
@@ -435,7 +426,7 @@ export function RecipeForm({
                       variant="ghost"
                       size="icon"
                       disabled={index === 0}
-                      onClick={() => setIngredients(move(ingredients, index, index - 1))}
+                      onClick={() => setIngredients(moveItem(ingredients, index, index - 1))}
                       aria-label="Subir ingrediente"
                     >
                       <ArrowUp />
@@ -445,7 +436,7 @@ export function RecipeForm({
                       variant="ghost"
                       size="icon"
                       disabled={index === ingredients.length - 1}
-                      onClick={() => setIngredients(move(ingredients, index, index + 1))}
+                      onClick={() => setIngredients(moveItem(ingredients, index, index + 1))}
                       aria-label="Bajar ingrediente"
                     >
                       <ArrowDown />
@@ -501,7 +492,7 @@ export function RecipeForm({
                   variant="ghost"
                   size="icon"
                   disabled={index === 0}
-                  onClick={() => setSteps(move(steps, index, index - 1))}
+                  onClick={() => setSteps(moveItem(steps, index, index - 1))}
                   aria-label="Subir paso"
                 >
                   <ArrowUp />
@@ -511,7 +502,7 @@ export function RecipeForm({
                   variant="ghost"
                   size="icon"
                   disabled={index === steps.length - 1}
-                  onClick={() => setSteps(move(steps, index, index + 1))}
+                  onClick={() => setSteps(moveItem(steps, index, index + 1))}
                   aria-label="Bajar paso"
                 >
                   <ArrowDown />

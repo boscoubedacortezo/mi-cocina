@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Clock, ExternalLink, Pencil, Users } from "lucide-react";
+import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { formatIngredient, formatMinutes } from "@/lib/recipes/format";
 import { getRecipe } from "@/lib/recipes/queries";
+import { hasThermomixVersion } from "@/lib/thermomix/queries";
 import { DeleteRecipeButton } from "../_components/delete-recipe-button";
 
 export async function generateMetadata({
@@ -26,7 +27,7 @@ function hostname(url: string) {
 
 export default async function RecipePage({ params }: PageProps<"/recetas/[id]">) {
   const { id } = await params;
-  const recipe = await getRecipe(id);
+  const [recipe, hasTm7] = await Promise.all([getRecipe(id), hasThermomixVersion(id)]);
   const prep = formatMinutes(recipe.prep_minutes);
   const cook = formatMinutes(recipe.cook_minutes);
 
@@ -84,6 +85,12 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
             ))}
           </div>
         )}
+        <Link
+          href={`/recetas/${recipe.id}/thermomix`}
+          className={buttonVariants({ size: "lg" })}
+        >
+          <ChefHat /> {hasTm7 ? "Ver versión TM7" : "Convertir a TM7"}
+        </Link>
         <div className="flex gap-2">
           <Link
             href={`/recetas/${recipe.id}/editar`}

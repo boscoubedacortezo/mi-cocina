@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { getAnthropic } from "./client";
 import { AI_EFFORT, AI_MAX_TOKENS, AI_MODEL } from "./config";
-import { ImportError } from "./errors";
+import { ImportError, toImportError } from "./errors";
 import { IMPORT_RECIPE_SYSTEM } from "./prompts/import-recipe";
 import { aiRecipeSchema, type AiRecipe } from "./schemas";
 
@@ -67,24 +67,4 @@ export async function extractRecipe(input: ExtractInput): Promise<AiRecipe> {
     throw new ImportError("La IA no devolvió una receta válida. Inténtalo de nuevo.");
   }
   return response.parsed_output;
-}
-
-function toImportError(error: unknown) {
-  console.error("[ai] recipe extraction failed:", error);
-  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-    return new ImportError("La clave de Anthropic no es válida. Revisa ANTHROPIC_API_KEY.");
-  }
-  if (error instanceof Anthropic.RateLimitError) {
-    return new ImportError("La IA está saturada ahora mismo. Espera un minuto e inténtalo de nuevo.");
-  }
-  if (error instanceof Anthropic.APIConnectionTimeoutError) {
-    return new ImportError("La IA ha tardado demasiado. Inténtalo de nuevo o prueba con menos contenido.");
-  }
-  if (error instanceof Anthropic.APIConnectionError) {
-    return new ImportError("No se pudo conectar con la IA. Inténtalo de nuevo.");
-  }
-  if (error instanceof Anthropic.BadRequestError) {
-    return new ImportError("La IA no pudo leer el contenido (¿imagen demasiado grande o corrupta?).");
-  }
-  return new ImportError("Error al consultar la IA. Inténtalo de nuevo.");
 }
