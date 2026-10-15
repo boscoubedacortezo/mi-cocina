@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth-server";
 import { contentSignature, planAutoMeta, type AutoMetaMode } from "@/lib/recipes/auto-meta";
 import { formatIngredient } from "@/lib/recipes/format";
 import { listAllTags } from "@/lib/recipes/queries";
-import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
+import { RECIPE_IMAGES_BUCKET, type Course, type MainIngredient } from "@/lib/recipes/constants";
 import { recipeInputSchema } from "@/lib/recipes/schema";
 
 export type ActionResult = { error: string };
@@ -25,13 +25,21 @@ const AUTO_META_TIMEOUT_MS = 15_000;
 async function autoFillMeta(
   supabase: Supabase,
   id: string,
-  recipe: { title: string; servings: number; prep_minutes: number | null; cook_minutes: number | null; tags: string[] },
+  recipe: {
+    title: string;
+    servings: number;
+    prep_minutes: number | null;
+    cook_minutes: number | null;
+    tags: string[];
+    course: Course | null;
+    main_ingredient: MainIngredient | null;
+  },
   ingredients: { name: string; quantity: number | null; unit: Parameters<typeof formatIngredient>[0]["unit"] }[],
   steps: { text: string }[],
   mode: AutoMetaMode,
 ) {
   const plan = planAutoMeta({ ...recipe, stepCount: steps.length }, mode);
-  if (!plan.times && !plan.tags) return;
+  if (!plan.times && !plan.tags && !plan.categories) return;
 
   try {
     const estimate = await estimateRecipe(
@@ -49,6 +57,8 @@ async function autoFillMeta(
       prep_minutes?: number | null;
       cook_minutes?: number | null;
       tags?: string[];
+      course?: Course;
+      main_ingredient?: MainIngredient;
     } = {};
     if (plan.times) {
       // Recomputing replaces old values, so a part that no longer exists is cleared.
@@ -56,6 +66,11 @@ async function autoFillMeta(
       if (mode === "all" || estimate.cook_minutes !== null) patch.cook_minutes = estimate.cook_minutes;
     }
     if (plan.tags && estimate.tags.length) patch.tags = estimate.tags;
+    if (plan.categories) {
+      // In "missing" mode only the absent one is filled.
+      if (mode === "all" || recipe.course === null) patch.course = estimate.course;
+      if (mode === "all" || recipe.main_ingredient === null) patch.main_ingredient = estimate.main_ingredient;
+    }
     if (Object.keys(patch).length) {
       await supabase.from("recipes").update(patch).eq("id", id);
     }

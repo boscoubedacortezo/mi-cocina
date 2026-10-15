@@ -28,6 +28,9 @@ export function toRecipeDraft(
     prep_minutes: clampInt(ai.prep_minutes, 0, 24 * 60),
     cook_minutes: clampInt(ai.cook_minutes, 0, 24 * 60),
     tags,
+    // Set by the AI when the recipe is saved.
+    course: null,
+    main_ingredient: null,
     source_url: sourceUrl,
     notes: ai.notes?.trim().slice(0, 4000) || null,
     ingredients: ai.ingredients

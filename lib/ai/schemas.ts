@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SHOP_SECTIONS, UNITS } from "@/lib/recipes/constants";
+import { COURSES, MAIN_INGREDIENTS, SHOP_SECTIONS, UNITS } from "@/lib/recipes/constants";
 import { TM_ACCESSORIES, TM_MODES, TM_SPEEDS } from "@/lib/thermomix/constants";
 
 /**
@@ -68,10 +68,12 @@ export const aiMenuSchema = z.object({
 
 export type AiMenu = z.infer<typeof aiMenuSchema>;
 
-/** Estimated times and tags for a recipe that lacks them. */
+/** Estimated times, categories and tags for a recipe that lacks them. */
 export const aiEstimateSchema = z.object({
   prep_minutes: z.number().int().nullable(),
   cook_minutes: z.number().int().nullable(),
+  course: z.enum(COURSES),
+  main_ingredient: z.enum(MAIN_INGREDIENTS),
   tags: z.array(z.string()),
 });
 

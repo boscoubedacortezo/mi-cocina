@@ -2,12 +2,21 @@ import "server-only";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { RECIPE_IMAGES_BUCKET, type ShopSection, type SourceType, type Unit } from "./constants";
+import {
+  RECIPE_IMAGES_BUCKET,
+  type Course,
+  type MainIngredient,
+  type ShopSection,
+  type SourceType,
+  type Unit,
+} from "./constants";
 
 export type RecipeSummary = {
   id: string;
   title: string;
   tags: string[];
+  course: Course | null;
+  main_ingredient: MainIngredient | null;
   prep_minutes: number | null;
   cook_minutes: number | null;
   image_path: string | null;
@@ -22,6 +31,8 @@ export type RecipeDetail = {
   prep_minutes: number | null;
   cook_minutes: number | null;
   tags: string[];
+  course: Course | null;
+  main_ingredient: MainIngredient | null;
   source_type: SourceType;
   source_url: string | null;
   image_path: string | null;
@@ -59,16 +70,23 @@ function sanitizeSearch(term: string) {
   return term.replace(/[,()%_\\*]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export async function listRecipes(filters: { q?: string; tag?: string }) {
+export async function listRecipes(filters: {
+  q?: string;
+  tag?: string;
+  course?: Course;
+  main?: MainIngredient;
+}) {
   const supabase = await createClient();
   let query = supabase
     .from("recipes")
-    .select("id, title, tags, prep_minutes, cook_minutes, image_path")
+    .select("id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, image_path")
     .order("created_at", { ascending: false });
 
   const q = filters.q ? sanitizeSearch(filters.q) : "";
   if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
   if (filters.tag) query = query.contains("tags", [filters.tag]);
+  if (filters.course) query = query.eq("course", filters.course);
+  if (filters.main) query = query.eq("main_ingredient", filters.main);
 
   const { data, error } = await query;
   if (error) throw new Error("No se pudieron cargar las recetas.");
@@ -80,6 +98,29 @@ export async function listRecipes(filters: { q?: string; tag?: string }) {
     ...recipe,
     image_url: recipe.image_path ? (urls.get(recipe.image_path) ?? null) : null,
   }));
+}
+
+/** What the list filters can offer: only values that at least one recipe has. */
+export async function listFacets() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("recipes").select("tags, course, main_ingredient");
+  if (error) throw new Error("No se pudieron cargar los filtros.");
+
+  const courses = new Set<Course>();
+  const mains = new Set<MainIngredient>();
+  const tagCounts = new Map<string, number>();
+  for (const row of data) {
+    if (row.course) courses.add(row.course);
+    if (row.main_ingredient) mains.add(row.main_ingredient);
+    for (const tag of row.tags as string[]) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
+  }
+  return {
+    courses,
+    mains,
+    tags: [...tagCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
+      .map(([tag]) => tag),
+  };
 }
 
 export async function listAllTags() {
@@ -130,6 +171,8 @@ export const getRecipe = cache(async (id: string): Promise<RecipeDetail> => {
     prep_minutes: r.prep_minutes,
     cook_minutes: r.cook_minutes,
     tags: r.tags,
+    course: r.course,
+    main_ingredient: r.main_ingredient,
     source_type: r.source_type,
     source_url: r.source_url,
     image_path: r.image_path,

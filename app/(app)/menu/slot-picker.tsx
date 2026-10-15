@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMinutes } from "@/lib/recipes/format";
+import { COURSE_LABELS, MAIN_INGREDIENT_LABELS } from "@/lib/recipes/constants";
 import type { RecipeOption } from "@/lib/menu/queries";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +45,9 @@ export function SlotPicker({
   const filtered = useMemo(() => {
     const q = normalize(query.trim());
     if (!q) return recipes;
-    return recipes.filter((r) => normalize(`${r.title} ${r.tags.join(" ")}`).includes(q));
+    return recipes.filter((r) => normalize(
+          `${r.title} ${r.tags.join(" ")} ${r.course ? COURSE_LABELS[r.course] : ""} ${r.main_ingredient ? MAIN_INGREDIENT_LABELS[r.main_ingredient] : ""}`,
+        ).includes(q));
   }, [recipes, query]);
 
   return (
@@ -106,7 +109,11 @@ export function SlotPicker({
                 <span>{recipe.title}</span>
                 <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                   {time && <span>{time}</span>}
-                  {recipe.tags.slice(0, 3).map((tag) => (
+                  {recipe.course && <Badge>{COURSE_LABELS[recipe.course]}</Badge>}
+                  {recipe.main_ingredient && (
+                    <Badge variant="outline">{MAIN_INGREDIENT_LABELS[recipe.main_ingredient]}</Badge>
+                  )}
+                  {recipe.tags.slice(0, 2).map((tag) => (
                     <Badge key={tag} variant="secondary">
                       {tag}
                     </Badge>

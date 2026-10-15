@@ -148,6 +148,8 @@ export function RecipeForm({
       prep_minutes: initial?.prep_minutes ?? null,
       cook_minutes: initial?.cook_minutes ?? null,
       tags: initial?.tags ?? [],
+      course: initial?.course ?? null,
+      main_ingredient: initial?.main_ingredient ?? null,
       source_type: sourceType,
       source_url: sourceUrl,
       notes,

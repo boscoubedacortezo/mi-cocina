@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import type { Course, MainIngredient } from "@/lib/recipes/constants";
 import type { Meal } from "./schema";
 
 export type MenuItemView = {
@@ -14,6 +15,8 @@ export type RecipeOption = {
   id: string;
   title: string;
   tags: string[];
+  course: Course | null;
+  main_ingredient: MainIngredient | null;
   minutes: number | null;
 };
 
@@ -50,7 +53,7 @@ export async function listRecipeOptions(): Promise<RecipeOption[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("recipes")
-    .select("id, title, tags, prep_minutes, cook_minutes")
+    .select("id, title, tags, course, main_ingredient, prep_minutes, cook_minutes")
     .order("title");
   if (error) throw new Error("No se pudieron cargar las recetas.");
   return data.map((recipe) => {
@@ -59,6 +62,8 @@ export async function listRecipeOptions(): Promise<RecipeOption[]> {
       id: recipe.id,
       title: recipe.title,
       tags: recipe.tags,
+      course: recipe.course,
+      main_ingredient: recipe.main_ingredient,
       minutes: minutes || null,
     };
   });
@@ -69,13 +74,17 @@ export async function listRecipesForPlanning() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("recipes")
-    .select("id, title, tags, prep_minutes, cook_minutes, recipe_ingredients(name, position)")
+    .select(
+      "id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, recipe_ingredients(name, position)",
+    )
     .order("created_at", { ascending: false });
   if (error) throw new Error("No se pudieron cargar las recetas.");
   return data.map((recipe) => ({
     id: recipe.id as string,
     title: recipe.title as string,
     tags: recipe.tags as string[],
+    course: recipe.course as Course | null,
+    main: recipe.main_ingredient as MainIngredient | null,
     minutes: ((recipe.prep_minutes ?? 0) + (recipe.cook_minutes ?? 0)) || null,
     ingredients: (recipe.recipe_ingredients as { name: string; position: number }[])
       .sort((a, b) => a.position - b.position)

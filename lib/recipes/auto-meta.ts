@@ -7,22 +7,31 @@ export type AutoMetaMode =
 /**
  * Which details the AI should write when a recipe is saved. In "missing" mode
  * it never touches what exists: times only when both are empty (a salad has no
- * cooking time on purpose), tags only when there are none.
+ * cooking time on purpose), categories only when one is missing, tags only when
+ * there are none and the AI is being called anyway.
  */
 export function planAutoMeta(
   recipe: {
     prep_minutes: number | null;
     cook_minutes: number | null;
     tags: string[];
+    course: string | null;
+    main_ingredient: string | null;
     stepCount: number;
   },
   mode: AutoMetaMode,
 ) {
-  if (recipe.stepCount === 0) return { times: false, tags: false };
-  if (mode === "all") return { times: true, tags: true };
+  if (recipe.stepCount === 0) return { times: false, tags: false, categories: false };
+  if (mode === "all") return { times: true, tags: true, categories: true };
+  const times = recipe.prep_minutes === null && recipe.cook_minutes === null;
+  // Recipes saved before categories existed get theirs on the next save.
+  const categories = recipe.course === null || recipe.main_ingredient === null;
   return {
-    times: recipe.prep_minutes === null && recipe.cook_minutes === null,
-    tags: recipe.tags.length === 0,
+    times,
+    categories,
+    // The AI may decide a recipe needs no tags, so an empty list alone must not
+    // trigger a call on every save: tags ride along when it is called anyway.
+    tags: recipe.tags.length === 0 && (times || categories),
   };
 }
 

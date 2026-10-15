@@ -5,6 +5,7 @@ import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
+import { COURSE_LABELS, MAIN_INGREDIENT_LABELS } from "@/lib/recipes/constants";
 import { formatMinutes } from "@/lib/recipes/format";
 import { getRecipe } from "@/lib/recipes/queries";
 import { hasThermomixVersion } from "@/lib/thermomix/queries";
@@ -80,8 +81,18 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
             </span>
           )}
         </div>
-        {recipe.tags.length > 0 && (
+        {(recipe.course || recipe.main_ingredient || recipe.tags.length > 0) && (
           <div className="flex flex-wrap gap-2">
+            {recipe.course && (
+              <Link href={`/recetas?tipo=${recipe.course}`}>
+                <Badge>{COURSE_LABELS[recipe.course]}</Badge>
+              </Link>
+            )}
+            {recipe.main_ingredient && (
+              <Link href={`/recetas?principal=${recipe.main_ingredient}`}>
+                <Badge variant="outline">{MAIN_INGREDIENT_LABELS[recipe.main_ingredient]}</Badge>
+              </Link>
+            )}
             {recipe.tags.map((tag) => (
               <Link key={tag} href={`/recetas?tag=${encodeURIComponent(tag)}`}>
                 <Badge variant="secondary">{tag}</Badge>

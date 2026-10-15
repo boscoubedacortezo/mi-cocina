@@ -60,10 +60,12 @@ export async function estimateRecipe(
     throw new ImportError("La IA no devolvió una estimación válida. Inténtalo de nuevo.");
   }
 
-  const { prep_minutes, cook_minutes, tags } = response.parsed_output;
+  const { prep_minutes, cook_minutes, course, main_ingredient, tags } = response.parsed_output;
   return {
     prep_minutes: clampMinutes(prep_minutes),
     cook_minutes: clampMinutes(cook_minutes),
-    tags: [...new Set(tags.map((tag) => tag.trim().toLowerCase().slice(0, 40)).filter(Boolean))].slice(0, 5),
+    course,
+    main_ingredient,
+    tags: [...new Set(tags.map((tag) => tag.trim().toLowerCase().slice(0, 40)).filter(Boolean))].slice(0, 4),
   };
 }

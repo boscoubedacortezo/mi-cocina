@@ -1,4 +1,4 @@
-import type { ShopSection, Unit } from "./constants";
+import type { Course, MainIngredient, ShopSection, Unit } from "./constants";
 
 /** Editable recipe content, as held by the form before it is saved. */
 export type RecipeDraft = {
@@ -8,6 +8,8 @@ export type RecipeDraft = {
   prep_minutes: number | null;
   cook_minutes: number | null;
   tags: string[];
+  course: Course | null;
+  main_ingredient: MainIngredient | null;
   source_url: string | null;
   notes: string | null;
   ingredients: {

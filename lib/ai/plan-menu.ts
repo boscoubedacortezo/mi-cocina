@@ -11,6 +11,8 @@ export type PlanRecipe = {
   id: string;
   title: string;
   tags: string[];
+  course: string | null;
+  main: string | null;
   minutes: number | null;
   ingredients: string[];
 };
@@ -41,7 +43,7 @@ export async function planMenu(request: PlanRequest) {
     "Recetas disponibles:",
     ...recipes.map(
       (r) =>
-        `- ${r.id} | ${r.title} | etiquetas: ${r.tags.join(", ") || "—"} | ${r.minutes ? `${r.minutes} min` : "tiempo sin indicar"} | ingredientes: ${r.ingredients.slice(0, 8).join(", ") || "—"}`,
+        `- ${r.id} | ${r.title} | tipo: ${r.course ?? "—"} | principal: ${r.main ?? "—"} | etiquetas: ${r.tags.join(", ") || "—"} | ${r.minutes ? `${r.minutes} min` : "tiempo sin indicar"} | ingredientes: ${r.ingredients.slice(0, 8).join(", ") || "—"}`,
     ),
     "",
     "Huecos fijados por el usuario:",
