@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { estimateRecipe } from "@/lib/ai/estimate-recipe";
 import { requireUser } from "@/lib/auth-server";
-import { planAutoMeta } from "@/lib/recipes/auto-meta";
+import { contentSignature, planAutoMeta, type AutoMetaMode } from "@/lib/recipes/auto-meta";
 import { formatIngredient } from "@/lib/recipes/format";
 import { listAllTags } from "@/lib/recipes/queries";
 import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
@@ -19,7 +19,7 @@ type Supabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
 const AUTO_META_TIMEOUT_MS = 15_000;
 
 /**
- * Fills missing times and tags from the steps right after saving. Best effort:
+ * Writes times and tags from the recipe's content right after saving. Best effort:
  * any failure is logged and ignored, the recipe is already saved.
  */
 async function autoFillMeta(
@@ -28,8 +28,9 @@ async function autoFillMeta(
   recipe: { title: string; servings: number; prep_minutes: number | null; cook_minutes: number | null; tags: string[] },
   ingredients: { name: string; quantity: number | null; unit: Parameters<typeof formatIngredient>[0]["unit"] }[],
   steps: { text: string }[],
+  mode: AutoMetaMode,
 ) {
-  const plan = planAutoMeta({ ...recipe, stepCount: steps.length });
+  const plan = planAutoMeta({ ...recipe, stepCount: steps.length }, mode);
   if (!plan.times && !plan.tags) return;
 
   try {
@@ -44,10 +45,15 @@ async function autoFillMeta(
       { timeoutMs: AUTO_META_TIMEOUT_MS },
     );
 
-    const patch: { prep_minutes?: number; cook_minutes?: number; tags?: string[] } = {};
+    const patch: {
+      prep_minutes?: number | null;
+      cook_minutes?: number | null;
+      tags?: string[];
+    } = {};
     if (plan.times) {
-      if (estimate.prep_minutes !== null) patch.prep_minutes = estimate.prep_minutes;
-      if (estimate.cook_minutes !== null) patch.cook_minutes = estimate.cook_minutes;
+      // Recomputing replaces old values, so a part that no longer exists is cleared.
+      if (mode === "all" || estimate.prep_minutes !== null) patch.prep_minutes = estimate.prep_minutes;
+      if (mode === "all" || estimate.cook_minutes !== null) patch.cook_minutes = estimate.cook_minutes;
     }
     if (plan.tags && estimate.tags.length) patch.tags = estimate.tags;
     if (Object.keys(patch).length) {
@@ -79,7 +85,7 @@ export async function createRecipe(input: unknown): Promise<ActionResult> {
     return { error: GENERIC_ERROR };
   }
 
-  await autoFillMeta(supabase, data.id, recipe, ingredients, steps);
+  await autoFillMeta(supabase, data.id, recipe, ingredients, steps, "missing");
 
   revalidatePath("/recetas");
   redirect(`/recetas/${data.id}`);
@@ -97,16 +103,28 @@ export async function updateRecipe(
 
   const { data: existing } = await supabase
     .from("recipes")
-    .select("image_path")
+    .select("image_path, title")
     .eq("id", id)
     .maybeSingle();
   if (!existing) return { error: "La receta ya no existe." };
 
   const [oldIngredients, oldSteps] = await Promise.all([
-    supabase.from("recipe_ingredients").select("id").eq("recipe_id", id),
-    supabase.from("recipe_steps").select("id").eq("recipe_id", id),
+    supabase
+      .from("recipe_ingredients")
+      .select("id, name, quantity, unit")
+      .eq("recipe_id", id)
+      .order("position"),
+    supabase.from("recipe_steps").select("id, text").eq("recipe_id", id).order("position"),
   ]);
   if (oldIngredients.error || oldSteps.error) return { error: GENERIC_ERROR };
+
+  // Times and tags come from the content: recompute them only if it changed.
+  const contentChanged =
+    contentSignature({
+      title: existing.title,
+      ingredients: oldIngredients.data,
+      steps: oldSteps.data,
+    }) !== contentSignature({ title: recipe.title, ingredients, steps });
 
   // New rows go in first and old ones are removed afterwards, so a failure
   // midway never leaves the recipe without ingredients or steps.
@@ -130,7 +148,7 @@ export async function updateRecipe(
     await supabase.storage.from(RECIPE_IMAGES_BUCKET).remove([existing.image_path]);
   }
 
-  await autoFillMeta(supabase, id, recipe, ingredients, steps);
+  await autoFillMeta(supabase, id, recipe, ingredients, steps, contentChanged ? "all" : "missing");
 
   revalidatePath("/recetas");
   revalidatePath(`/recetas/${id}`);

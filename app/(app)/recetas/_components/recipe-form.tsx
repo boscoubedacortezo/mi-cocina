@@ -10,7 +10,6 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -82,10 +81,6 @@ export function RecipeForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [servings, setServings] = useState(String(initial?.servings ?? 4));
-  const [prep, setPrep] = useState(String(initial?.prep_minutes ?? ""));
-  const [cook, setCook] = useState(String(initial?.cook_minutes ?? ""));
-  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
-  const [tagDraft, setTagDraft] = useState("");
   const [sourceUrl, setSourceUrl] = useState(initial?.source_url ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [ingredients, setIngredients] = useState<IngredientRow[]>(
@@ -112,12 +107,6 @@ export function RecipeForm({
   const [newImage, setNewImage] = useState<{ blob: Blob; ext: string } | null>(
     null,
   );
-
-  function addTag(raw: string) {
-    const tag = raw.trim().toLowerCase();
-    if (tag && !tags.includes(tag)) setTags([...tags, tag]);
-    setTagDraft("");
-  }
 
   async function onPickImage(file: File | undefined) {
     if (!file) return;
@@ -148,20 +137,17 @@ export function RecipeForm({
       toast.error("Hay una cantidad que no es un número.");
       return;
     }
-    const minutes = [toNumber(prep), toNumber(cook)];
-    if (minutes.some((m) => Number.isNaN(m))) {
-      toast.error("Los tiempos deben ser números.");
-      return;
-    }
 
     // Empty rows are dropped; the rest is validated with the shared schema.
     const parsed = recipeInputSchema.safeParse({
       title,
       description,
       servings: toNumber(servings),
-      prep_minutes: minutes[0],
-      cook_minutes: minutes[1],
-      tags,
+      // Not edited here: the AI sets times and tags when the recipe is saved.
+      // Existing values travel along so saving never erases them.
+      prep_minutes: initial?.prep_minutes ?? null,
+      cook_minutes: initial?.cook_minutes ?? null,
+      tags: initial?.tags ?? [],
       source_type: sourceType,
       source_url: sourceUrl,
       notes,
@@ -285,75 +271,18 @@ export function RecipeForm({
             maxLength={1000}
           />
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${formId}-servings`}>Raciones</Label>
-            <Input
-              id={`${formId}-servings`}
-              inputMode="numeric"
-              value={servings}
-              onChange={(e) => setServings(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${formId}-prep`}>Prep. (min)</Label>
-            <Input
-              id={`${formId}-prep`}
-              inputMode="numeric"
-              value={prep}
-              onChange={(e) => setPrep(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${formId}-cook`}>Cocción (min)</Label>
-            <Input
-              id={`${formId}-cook`}
-              inputMode="numeric"
-              value={cook}
-              onChange={(e) => setCook(e.target.value)}
-            />
-          </div>
-        </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-tags`}>Etiquetas</Label>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="gap-1">
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => setTags(tags.filter((t) => t !== tag))}
-                    aria-label={`Quitar etiqueta ${tag}`}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Input
-              id={`${formId}-tags`}
-              value={tagDraft}
-              placeholder="p. ej. pasta, rápido"
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value.endsWith(",")) addTag(value.slice(0, -1));
-                else setTagDraft(value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addTag(tagDraft);
-                }
-              }}
-              onBlur={() => addTag(tagDraft)}
-            />
-            <Button type="button" variant="outline" onClick={() => addTag(tagDraft)}>
-              Añadir
-            </Button>
-          </div>
+          <Label htmlFor={`${formId}-servings`}>Raciones</Label>
+          <Input
+            id={`${formId}-servings`}
+            inputMode="numeric"
+            value={servings}
+            onChange={(e) => setServings(e.target.value)}
+            className="w-28"
+          />
+          <p className="text-sm text-muted-foreground">
+            Los tiempos y las etiquetas los calcula la IA al guardar.
+          </p>
         </div>
       </section>
 
