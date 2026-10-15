@@ -181,36 +181,11 @@ export function WeekPlanner({
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <span className="flex items-center gap-2">
-                    <h2 className="font-heading font-medium capitalize">
+                    <h2 className="font-heading font-medium">
                       {label}
                     </h2>
                     {date === today && <Badge>Hoy</Badge>}
                   </span>
-                  {!open && (
-                    <span className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                      {MEALS.map((meal) => {
-                        const { Icon, color } = MEAL_ICONS[meal];
-                        const title = bySlot.get(slotKey(date, meal))?.recipe
-                          ?.title;
-                        return (
-                          <span
-                            key={meal}
-                            className="flex items-center gap-1.5"
-                          >
-                            <Icon
-                              className={cn("size-3.5 shrink-0", color)}
-                              aria-hidden
-                            />
-                            <span
-                              className={cn("truncate", !title && "italic")}
-                            >
-                              {title ?? "Sin planificar"}
-                            </span>
-                          </span>
-                        );
-                      })}
-                    </span>
-                  )}
                 </div>
                 <ChevronDown
                   className={cn(

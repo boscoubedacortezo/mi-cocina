@@ -84,7 +84,7 @@ export function SlotPicker({
       className="fixed inset-x-0 top-auto bottom-0 m-0 mx-auto max-h-[85dvh] w-full max-w-2xl flex-col rounded-t-2xl border bg-background p-0 text-foreground backdrop:bg-black/50 open:flex"
     >
       <div className="flex items-center justify-between gap-2 border-b p-4">
-        <h2 className="font-heading font-semibold capitalize">{title}</h2>
+        <h2 className="font-heading font-semibold">{title}</h2>
         <Button type="button" variant="ghost" size="icon" onClick={() => dialog.current?.close()} aria-label="Cerrar">
           <X />
         </Button>

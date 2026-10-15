@@ -33,12 +33,14 @@ export function weekDates(monday: string) {
 const dayFormat = new Intl.DateTimeFormat("es-ES", {
   weekday: "long",
   day: "numeric",
-  month: "short",
+  month: "long",
   timeZone: "UTC",
 });
 
+/** "Lunes, 12 de octubre": only the first letter is capitalised, as in Spanish. */
 export function formatDay(iso: string) {
-  return dayFormat.format(parseIso(iso)!);
+  const text = dayFormat.format(parseIso(iso)!);
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 export function formatWeekRange(monday: string) {
