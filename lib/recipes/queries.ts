@@ -21,6 +21,8 @@ export type RecipeSummary = {
   cook_minutes: number | null;
   image_path: string | null;
   image_url: string | null;
+  /** True when the recipe has a Thermomix version. */
+  has_thermomix: boolean;
 };
 
 export type RecipeDetail = {
@@ -79,7 +81,9 @@ export async function listRecipes(filters: {
   const supabase = await createClient();
   let query = supabase
     .from("recipes")
-    .select("id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, image_path")
+    .select(
+      "id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, image_path, thermomix_versions(id)",
+    )
     .order("created_at", { ascending: false });
 
   const q = filters.q ? sanitizeSearch(filters.q) : "";
@@ -94,9 +98,10 @@ export async function listRecipes(filters: {
   const urls = await signImageUrls(
     data.flatMap((recipe) => (recipe.image_path ? [recipe.image_path] : [])),
   );
-  return data.map<RecipeSummary>((recipe) => ({
+  return data.map<RecipeSummary>(({ thermomix_versions, ...recipe }) => ({
     ...recipe,
     image_url: recipe.image_path ? (urls.get(recipe.image_path) ?? null) : null,
+    has_thermomix: Array.isArray(thermomix_versions) && thermomix_versions.length > 0,
   }));
 }
 

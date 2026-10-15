@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Clock, Plus, Search } from "lucide-react";
+import { ChefHat, Clock, Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
@@ -174,20 +174,31 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                   href={`/recetas/${recipe.id}`}
                   className="flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-accent/40"
                 >
-                  {recipe.image_url ? (
-                    <div className="relative aspect-[16/9] bg-muted">
-                      <Image
-                        src={recipe.image_url}
-                        alt=""
-                        fill
-                        sizes="(min-width: 672px) 336px, 100vw"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </div>
-                  ) : (
-                    <RecipePlaceholder recipe={recipe} className="aspect-[16/9]" />
-                  )}
+                  <div className="relative">
+                    {recipe.image_url ? (
+                      <div className="relative aspect-[16/9] bg-muted">
+                        <Image
+                          src={recipe.image_url}
+                          alt=""
+                          fill
+                          sizes="(min-width: 672px) 336px, 100vw"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ) : (
+                      <RecipePlaceholder recipe={recipe} className="aspect-[16/9]" />
+                    )}
+                    {recipe.has_thermomix && (
+                      <span
+                        className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-xs font-medium text-foreground shadow-sm"
+                        title="Tiene versión Thermomix"
+                      >
+                        <ChefHat className="size-3.5" aria-hidden />
+                        Thermomix
+                      </span>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-2 p-3">
                     <h2 className="font-heading leading-snug font-medium">
                       {recipe.title}
