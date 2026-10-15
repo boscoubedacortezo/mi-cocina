@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ChefHat, Clock, Plus, Search, X } from "lucide-react";
+import { ChefHat, Clock, Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
-import { Input } from "@/components/ui/input";
 import { formatMinutes } from "@/lib/recipes/format";
 import {
   COURSES,
@@ -17,6 +16,7 @@ import {
 } from "@/lib/recipes/constants";
 import { listFacets, listRecipes } from "@/lib/recipes/queries";
 import { FiltersButton } from "./filters-sheet";
+import { SearchInput } from "./search-input";
 
 export const metadata: Metadata = { title: "Recetas" };
 
@@ -86,20 +86,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
         {tipo && <input type="hidden" name="tipo" value={tipo} />}
         {principal && <input type="hidden" name="principal" value={principal} />}
         {thermomix && <input type="hidden" name="thermomix" value={thermomix} />}
-        <div className="relative flex-1">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden
-          />
-          <Input
-            name="q"
-            type="search"
-            defaultValue={q}
-            placeholder="Buscar receta"
-            aria-label="Buscar receta"
-            className="pl-8"
-          />
-        </div>
+        <SearchInput defaultValue={q} clearHref={href({ ...current, q: undefined })} />
         <FiltersButton
           q={q}
           current={{ tipo, principal, tag, thermomix }}
