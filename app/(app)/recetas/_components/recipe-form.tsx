@@ -5,8 +5,6 @@ import {
   ArrowDown,
   ArrowUp,
   Camera,
-  Loader2,
-  Sparkles,
   Plus,
   Trash2,
   X,
@@ -27,12 +25,10 @@ import {
   type Unit,
 } from "@/lib/recipes/constants";
 import type { RecipeDraft } from "@/lib/recipes/draft";
-import { formatIngredient } from "@/lib/recipes/format";
 import { recipeInputSchema } from "@/lib/recipes/schema";
 import { createClient } from "@/lib/supabase/client";
 import { moveItem, selectClass } from "@/lib/utils";
 import { createRecipe, updateRecipe } from "../actions";
-import { estimateRecipeMeta } from "../estimate-actions";
 
 export type RecipeFormInitial = RecipeDraft & {
   image_path: string | null;
@@ -82,7 +78,6 @@ export function RecipeForm({
   const formId = useId();
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
-  const [estimating, startEstimating] = useTransition();
 
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -134,63 +129,6 @@ export function RecipeForm({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Imagen no válida.");
     }
-  }
-
-  function estimate() {
-    const stepTexts = steps.map((step) => step.text.trim()).filter(Boolean);
-    const lines = ingredients
-      .filter((row) => row.name.trim())
-      .map((row) => {
-        const quantity = toNumber(row.quantity);
-        return formatIngredient({
-          name: row.name.trim(),
-          quantity: Number.isNaN(quantity) ? null : quantity,
-          unit: row.unit || null,
-        });
-      });
-    startEstimating(async () => {
-      const result = await estimateRecipeMeta({
-        title,
-        servings: Math.min(100, Math.max(1, Math.round(toNumber(servings) || 4))),
-        ingredients: lines,
-        steps: stepTexts,
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-
-      // Never overwrite what the user already wrote.
-      const applied: string[] = [];
-      const kept: string[] = [];
-      if (result.prep_minutes !== null) {
-        if (prep.trim()) kept.push("preparación");
-        else {
-          setPrep(String(result.prep_minutes));
-          applied.push(`preparación ${result.prep_minutes} min`);
-        }
-      }
-      if (result.cook_minutes !== null) {
-        if (cook.trim()) kept.push("cocción");
-        else {
-          setCook(String(result.cook_minutes));
-          applied.push(`cocción ${result.cook_minutes} min`);
-        }
-      }
-      const newTags = result.tags.filter((tag) => !tags.includes(tag));
-      if (newTags.length) {
-        setTags([...tags, ...newTags].slice(0, 20));
-        applied.push(`etiquetas: ${newTags.join(", ")}`);
-      }
-
-      toast.success(applied.length ? "Estimación aplicada" : "Nada nuevo que añadir", {
-        description:
-          [applied.join(" · "), kept.length ? `Se han respetado tus valores de ${kept.join(" y ")}.` : ""]
-            .filter(Boolean)
-            .join(" ") || undefined,
-        duration: 8_000,
-      });
-    });
   }
 
   function removeImage() {
@@ -417,15 +355,6 @@ export function RecipeForm({
             </Button>
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={estimate}
-          disabled={estimating || steps.every((step) => !step.text.trim())}
-        >
-          {estimating ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {estimating ? "Estimando…" : "Estimar tiempos y etiquetas con IA"}
-        </Button>
       </section>
 
       <section className="flex flex-col gap-3">

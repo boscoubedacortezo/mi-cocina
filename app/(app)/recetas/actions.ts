@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { estimateRecipe } from "@/lib/ai/estimate-recipe";
 import { requireUser } from "@/lib/auth-server";
+import { planAutoMeta } from "@/lib/recipes/auto-meta";
+import { formatIngredient } from "@/lib/recipes/format";
+import { listAllTags } from "@/lib/recipes/queries";
 import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
 import { recipeInputSchema } from "@/lib/recipes/schema";
 
@@ -11,6 +15,48 @@ export type ActionResult = { error: string };
 const GENERIC_ERROR = "No se pudo guardar la receta. Inténtalo de nuevo.";
 
 type Supabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
+
+const AUTO_META_TIMEOUT_MS = 15_000;
+
+/**
+ * Fills missing times and tags from the steps right after saving. Best effort:
+ * any failure is logged and ignored, the recipe is already saved.
+ */
+async function autoFillMeta(
+  supabase: Supabase,
+  id: string,
+  recipe: { title: string; servings: number; prep_minutes: number | null; cook_minutes: number | null; tags: string[] },
+  ingredients: { name: string; quantity: number | null; unit: Parameters<typeof formatIngredient>[0]["unit"] }[],
+  steps: { text: string }[],
+) {
+  const plan = planAutoMeta({ ...recipe, stepCount: steps.length });
+  if (!plan.times && !plan.tags) return;
+
+  try {
+    const estimate = await estimateRecipe(
+      {
+        title: recipe.title,
+        servings: recipe.servings,
+        ingredients: ingredients.map(formatIngredient),
+        steps: steps.map((step) => step.text),
+      },
+      await listAllTags(),
+      { timeoutMs: AUTO_META_TIMEOUT_MS },
+    );
+
+    const patch: { prep_minutes?: number; cook_minutes?: number; tags?: string[] } = {};
+    if (plan.times) {
+      if (estimate.prep_minutes !== null) patch.prep_minutes = estimate.prep_minutes;
+      if (estimate.cook_minutes !== null) patch.cook_minutes = estimate.cook_minutes;
+    }
+    if (plan.tags && estimate.tags.length) patch.tags = estimate.tags;
+    if (Object.keys(patch).length) {
+      await supabase.from("recipes").update(patch).eq("id", id);
+    }
+  } catch (error) {
+    console.error("[recipes] auto estimate skipped:", error instanceof Error ? error.message : error);
+  }
+}
 
 export async function createRecipe(input: unknown): Promise<ActionResult> {
   const { supabase, userId } = await requireUser();
@@ -32,6 +78,8 @@ export async function createRecipe(input: unknown): Promise<ActionResult> {
     await supabase.from("recipes").delete().eq("id", data.id);
     return { error: GENERIC_ERROR };
   }
+
+  await autoFillMeta(supabase, data.id, recipe, ingredients, steps);
 
   revalidatePath("/recetas");
   redirect(`/recetas/${data.id}`);
@@ -81,6 +129,8 @@ export async function updateRecipe(
   if (existing.image_path && existing.image_path !== recipe.image_path) {
     await supabase.storage.from(RECIPE_IMAGES_BUCKET).remove([existing.image_path]);
   }
+
+  await autoFillMeta(supabase, id, recipe, ingredients, steps);
 
   revalidatePath("/recetas");
   revalidatePath(`/recetas/${id}`);

@@ -16,7 +16,11 @@ export type EstimateInput = {
 const clampMinutes = (value: number | null) =>
   value === null || !Number.isFinite(value) ? null : Math.min(24 * 60, Math.max(0, Math.round(value)));
 
-export async function estimateRecipe(input: EstimateInput, existingTags: string[]) {
+export async function estimateRecipe(
+  input: EstimateInput,
+  existingTags: string[],
+  options: { timeoutMs: number },
+) {
   const prompt = [
     `Título: ${input.title}`,
     `Raciones: ${input.servings}`,
@@ -32,15 +36,19 @@ export async function estimateRecipe(input: EstimateInput, existingTags: string[
 
   let response;
   try {
-    response = await getAnthropic().beta.messages.parse({
-      model: AI_MODEL,
-      max_tokens: AI_MAX_TOKENS,
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      system: ESTIMATE_RECIPE_SYSTEM,
-      output_config: { effort: AI_EFFORT_LIGHT, format: zodOutputFormat(aiEstimateSchema) },
-      messages: [{ role: "user", content: `<receta>\n${prompt}\n</receta>` }],
-    });
+    response = await getAnthropic().beta.messages.parse(
+      {
+        model: AI_MODEL,
+        max_tokens: AI_MAX_TOKENS,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        system: ESTIMATE_RECIPE_SYSTEM,
+        output_config: { effort: AI_EFFORT_LIGHT, format: zodOutputFormat(aiEstimateSchema) },
+        messages: [{ role: "user", content: `<receta>\n${prompt}\n</receta>` }],
+      },
+      // Saving a recipe must not hang on this: fail fast and skip it.
+      { timeout: options.timeoutMs, maxRetries: 0 },
+    );
   } catch (error) {
     throw toImportError(error);
   }
