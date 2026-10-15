@@ -70,7 +70,7 @@ export const MAIN_INGREDIENT_LABELS: Record<MainIngredient, string> = {
 export const EQUIPMENT = [
   "horno",
   "sarten",
-  "olla",
+  "cazuela",
   "olla_presion",
   "plancha",
   "freidora_aire",
@@ -82,7 +82,7 @@ export type Equipment = (typeof EQUIPMENT)[number];
 export const EQUIPMENT_LABELS: Record<Equipment, string> = {
   horno: "Horno",
   sarten: "Sartén",
-  olla: "Cazuela",
+  cazuela: "Cazuela",
   olla_presion: "Olla a presión",
   plancha: "Plancha",
   freidora_aire: "Freidora de aire",

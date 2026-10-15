@@ -29,7 +29,7 @@ export const ESTIMATE_RECIPE_SYSTEM = `Eres el asistente de una app personal de 
 Con qué se hace la receta según sus pasos. Puede haber varios (un asado que se sella en sartén y se termina en el horno lleva "sarten" y "horno"). Solo los que se usan de verdad para cocinar, no para preparar (cortar o mezclar no cuenta).
 - "horno": horno, gratinar o asar.
 - "sarten": sartén, freír o saltear.
-- "olla": cazuela, olla o puchero.
+- "cazuela": cazuela, olla o puchero.
 - "olla_presion": olla a presión o exprés.
 - "plancha": plancha, parrilla o barbacoa.
 - "freidora_aire": freidora de aire.
