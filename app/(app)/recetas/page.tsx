@@ -160,39 +160,41 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                   href={`/recetas/${recipe.id}`}
                   className="flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-accent/40"
                 >
-                  <div className="relative">
-                    {recipe.image_url ? (
-                      <div className="relative aspect-[16/9] bg-muted">
-                        <Image
-                          src={recipe.image_url}
-                          alt=""
-                          fill
-                          sizes="(min-width: 672px) 336px, 100vw"
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                    ) : (
-                      <RecipePlaceholder recipe={recipe} className="aspect-[16/9]" />
-                    )}
-                    {recipe.has_thermomix && (
-                      <span
-                        className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-xs font-medium text-foreground shadow-sm"
-                        title="Tiene versión Thermomix"
-                      >
-                        <ChefHat className="size-3.5" aria-hidden />
-                        Thermomix
-                      </span>
-                    )}
-                  </div>
+                  {recipe.image_url ? (
+                    <div className="relative aspect-[16/9] bg-muted">
+                      <Image
+                        src={recipe.image_url}
+                        alt=""
+                        fill
+                        sizes="(min-width: 672px) 336px, 100vw"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  ) : (
+                    <RecipePlaceholder recipe={recipe} className="aspect-[16/9]" />
+                  )}
                   <div className="flex flex-col gap-2 p-3">
                     <h2 className="font-heading leading-snug font-medium">
                       {recipe.title}
                     </h2>
-                    {total && (
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="size-3.5" aria-hidden />
-                        {total}
+                    {(total || recipe.has_thermomix) && (
+                      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        {total && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="size-3.5" aria-hidden />
+                            {total}
+                          </span>
+                        )}
+                        {recipe.has_thermomix && (
+                          <span
+                            className="flex items-center gap-1 font-medium text-foreground"
+                            title="Tiene versión Thermomix"
+                          >
+                            <ChefHat className="size-3.5" aria-hidden />
+                            Thermomix
+                          </span>
+                        )}
                       </p>
                     )}
                     {(recipe.course || recipe.main_ingredient) && (
