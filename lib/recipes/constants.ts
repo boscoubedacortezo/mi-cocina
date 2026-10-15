@@ -82,7 +82,7 @@ export type Equipment = (typeof EQUIPMENT)[number];
 export const EQUIPMENT_LABELS: Record<Equipment, string> = {
   horno: "Horno",
   sarten: "Sartén",
-  olla: "Olla",
+  olla: "Cazuela",
   olla_presion: "Olla a presión",
   plancha: "Plancha",
   freidora_aire: "Freidora de aire",
