@@ -9,7 +9,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       <header className="sticky top-0 z-40 border-b bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
           <span className="flex items-center gap-2 font-heading font-semibold">
-            <ChefHat className="size-5" aria-hidden />
+            <ChefHat className="size-5 text-primary" aria-hidden />
             Mi Cocina
           </span>
           <form action={signOut}>

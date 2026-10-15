@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChefHat, Clock, Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
 import { formatMinutes } from "@/lib/recipes/format";
 import {
@@ -199,7 +200,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                       <div className="flex flex-wrap gap-1">
                         {recipe.course && <Badge>{COURSE_LABELS[recipe.course]}</Badge>}
                         {recipe.main_ingredient && (
-                          <Badge variant="outline">{MAIN_INGREDIENT_LABELS[recipe.main_ingredient]}</Badge>
+                          <MainIngredientBadge value={recipe.main_ingredient} />
                         )}
                       </div>
                     )}

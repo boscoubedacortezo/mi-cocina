@@ -15,7 +15,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-8 px-6">
       <div className="flex flex-col items-center gap-2 text-center">
-        <ChefHat className="size-10" aria-hidden />
+        <span className="flex size-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+          <ChefHat className="size-9" aria-hidden />
+        </span>
         <h1 className="font-heading text-2xl font-semibold">Mi Cocina</h1>
         <p className="text-sm text-muted-foreground">
           Recetas, menú semanal y lista de la compra.

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { copyText } from "@/lib/clipboard";
 import { daysInRange, formatDateRange, mondayOf } from "@/lib/menu/dates";
 import { SHOP_SECTIONS, UNITS, type ShopSection, type Unit } from "@/lib/recipes/constants";
+import { SECTION_DOT } from "@/lib/shopping/colors";
 import { buildShoppingText, capitalize, formatAmount } from "@/lib/shopping/format";
 import type { ShoppingEntry, ShoppingListData } from "@/lib/shopping/queries";
 import { cn, selectClass } from "@/lib/utils";
@@ -261,7 +262,10 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
           </p>
           {groups.map((group) => (
             <section key={group.section} className="flex flex-col gap-1">
-              <h2 className="font-heading text-lg font-semibold">{group.section}</h2>
+              <h2 className="flex items-center gap-2 font-heading text-lg font-semibold">
+                <span className={cn("size-2.5 rounded-full", SECTION_DOT[group.section])} aria-hidden />
+                {group.section}
+              </h2>
               <ul className="divide-y rounded-xl border">
                 {group.items.map((item) => {
                   const amount = formatAmount(item.quantity, item.unit);

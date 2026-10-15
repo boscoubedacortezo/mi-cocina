@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link2, Loader2, Search, Sparkles, Trash2, X } from "lucide-react";
+import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -187,7 +188,7 @@ export function SlotPicker({
                   {time && <span>{time}</span>}
                   {recipe.course && <Badge>{COURSE_LABELS[recipe.course]}</Badge>}
                   {recipe.main_ingredient && (
-                    <Badge variant="outline">{MAIN_INGREDIENT_LABELS[recipe.main_ingredient]}</Badge>
+                    <MainIngredientBadge value={recipe.main_ingredient} />
                   )}
                   {recipe.tags.slice(0, 2).map((tag) => (
                     <Badge key={tag} variant="secondary">

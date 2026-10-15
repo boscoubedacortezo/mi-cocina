@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Loader2, Minus, Plus, Sparkles, Trash2, Users } from "lucide-react";
+import { Loader2, Minus, Moon, Plus, Sparkles, Sun, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,10 @@ import {
 import { SlotPicker } from "./slot-picker";
 
 const MEAL_LABELS: Record<Meal, string> = { comida: "Comida", cena: "Cena" };
+const MEAL_ICONS = {
+  comida: { Icon: Sun, color: "text-amber-500" },
+  cena: { Icon: Moon, color: "text-indigo-400" },
+} as const;
 
 type Slot = { date: string; meal: Meal };
 
@@ -141,7 +145,11 @@ export function WeekPlanner({
                 const slot = { date, meal };
                 return (
                   <div key={meal} className="flex items-center gap-3 py-2">
-                    <span className="w-14 shrink-0 text-xs text-muted-foreground uppercase">
+                    <span className="flex w-16 shrink-0 flex-col items-start gap-0.5 text-xs text-muted-foreground uppercase">
+                      {(() => {
+                        const { Icon, color } = MEAL_ICONS[meal];
+                        return <Icon className={cn("size-4", color)} aria-hidden />;
+                      })()}
                       {MEAL_LABELS[meal]}
                     </span>
                     {item?.recipe ? (

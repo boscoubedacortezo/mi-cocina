@@ -4,8 +4,9 @@ import Link from "next/link";
 import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
-import { COURSE_LABELS, MAIN_INGREDIENT_LABELS } from "@/lib/recipes/constants";
+import { COURSE_LABELS } from "@/lib/recipes/constants";
 import { isCookidooUrl } from "@/lib/recipes/cookidoo-url";
 import { formatMinutes } from "@/lib/recipes/format";
 import { getRecipe } from "@/lib/recipes/queries";
@@ -92,7 +93,7 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
             )}
             {recipe.main_ingredient && (
               <Link href={`/recetas?principal=${recipe.main_ingredient}`}>
-                <Badge variant="outline">{MAIN_INGREDIENT_LABELS[recipe.main_ingredient]}</Badge>
+                <MainIngredientBadge value={recipe.main_ingredient} />
               </Link>
             )}
             {recipe.tags.map((tag) => (
