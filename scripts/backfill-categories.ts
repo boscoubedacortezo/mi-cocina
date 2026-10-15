@@ -1,6 +1,6 @@
 /**
- * One-off: classify existing recipes that have no course / main ingredient yet.
- * It only fills those two fields; times and tags are left alone.
+ * One-off: classify existing recipes that lack a course, a main ingredient or how they
+ * are cooked. It only fills what is missing; times, tags and anything already set stay.
  *
  *   npx tsx --conditions react-server --env-file=.env.local scripts/backfill-categories.ts          # shows what it would do
  *   npx tsx --conditions react-server --env-file=.env.local scripts/backfill-categories.ts --apply  # writes it
@@ -10,7 +10,8 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import { estimateRecipe } from "@/lib/ai/estimate-recipe";
-import { COURSE_LABELS, MAIN_INGREDIENT_LABELS } from "@/lib/recipes/constants";
+import { COURSE_LABELS, EQUIPMENT_LABELS, MAIN_INGREDIENT_LABELS, type Equipment } from "@/lib/recipes/constants";
+import { isCookidooUrl } from "@/lib/recipes/cookidoo-url";
 import { formatIngredient } from "@/lib/recipes/format";
 
 const apply = process.argv.includes("--apply");
@@ -22,6 +23,8 @@ type Row = {
   tags: string[];
   course: keyof typeof COURSE_LABELS | null;
   main_ingredient: keyof typeof MAIN_INGREDIENT_LABELS | null;
+  equipment: Equipment[] | null;
+  source_url: string | null;
   recipe_ingredients: { name: string; quantity: number | null; unit: never; position: number }[];
   recipe_steps: { text: string; position: number }[];
 };
@@ -36,24 +39,25 @@ async function main() {
   const { data, error } = await supabase
     .from("recipes")
     .select(
-      "id, title, servings, tags, course, main_ingredient, recipe_ingredients(name, quantity, unit, position), recipe_steps(text, position)",
+      "id, title, servings, tags, course, main_ingredient, equipment, source_url, recipe_ingredients(name, quantity, unit, position), recipe_steps(text, position)",
     )
-    .or("course.is.null,main_ingredient.is.null")
     .returns<Row[]>();
   if (error) throw new Error(`No se pudieron leer las recetas: ${error.message}`);
 
   const { data: allTags } = await supabase.from("recipes").select("tags");
   const existingTags = [...new Set((allTags ?? []).flatMap((row) => row.tags as string[]))];
 
-  console.log(`${data.length} receta(s) sin clasificar. ${apply ? "Escribiendo cambios." : "Simulación: no se escribe nada."}\n`);
+  console.log(`${apply ? "Escribiendo cambios." : "Simulación: no se escribe nada."}\n`);
 
   let done = 0;
   for (const recipe of data) {
     const steps = [...recipe.recipe_steps].sort((a, b) => a.position - b.position);
-    if (steps.length === 0) {
-      console.log(`- ${recipe.title}: sin pasos, se omite`);
-      continue;
-    }
+    const fromCookidoo = isCookidooUrl(recipe.source_url);
+    const needsCategories = recipe.course === null || recipe.main_ingredient === null;
+    // Equipment is read from the steps; a Cookidoo recipe has none and is Thermomix by itself.
+    const needsEquipment = (recipe.equipment ?? []).length === 0 && steps.length > 0 && !fromCookidoo;
+    if (!needsCategories && !needsEquipment) continue;
+
     try {
       const estimate = await estimateRecipe(
         {
@@ -68,15 +72,17 @@ async function main() {
         { timeoutMs: 30_000 },
       );
 
-      // Only fill what is missing; never overwrite a category already set.
+      // Only fill what is missing; never overwrite something already set.
       const patch = {
         ...(recipe.course === null && { course: estimate.course }),
         ...(recipe.main_ingredient === null && { main_ingredient: estimate.main_ingredient }),
+        ...(needsEquipment && estimate.equipment.length > 0 && { equipment: estimate.equipment }),
       };
-      console.log(
-        `- ${recipe.title}: ${COURSE_LABELS[patch.course ?? recipe.course!]} / ${MAIN_INGREDIENT_LABELS[patch.main_ingredient ?? recipe.main_ingredient!]}`,
-      );
-      if (apply) {
+      const course = COURSE_LABELS[patch.course ?? recipe.course!];
+      const main = MAIN_INGREDIENT_LABELS[patch.main_ingredient ?? recipe.main_ingredient!];
+      const cooked = (patch.equipment ?? recipe.equipment ?? []).map((item) => EQUIPMENT_LABELS[item]);
+      console.log(`- ${recipe.title}: ${course} / ${main}${cooked.length ? ` · ${cooked.join(", ")}` : fromCookidoo ? " · (Cookidoo)" : ""}`);
+      if (apply && Object.keys(patch).length) {
         const { error: updateError } = await supabase.from("recipes").update(patch).eq("id", recipe.id);
         if (updateError) throw new Error(updateError.message);
       }

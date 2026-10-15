@@ -5,7 +5,7 @@ import type { requireUser } from "@/lib/auth-server";
 import { planAutoMeta, type AutoMetaMode } from "@/lib/recipes/auto-meta";
 import { formatIngredient } from "@/lib/recipes/format";
 import { listAllTags } from "@/lib/recipes/queries";
-import { RECIPE_IMAGES_BUCKET, type Course, type MainIngredient } from "@/lib/recipes/constants";
+import { RECIPE_IMAGES_BUCKET, type Course, type Equipment, type MainIngredient } from "@/lib/recipes/constants";
 import type { RecipeInput } from "@/lib/recipes/schema";
 
 // Shared by the recipe form actions and by the "add from Cookidoo" shortcut,
@@ -31,6 +31,7 @@ export async function autoFillMeta(
     tags: string[];
     course: Course | null;
     main_ingredient: MainIngredient | null;
+    equipment: Equipment[];
   },
   ingredients: { name: string; quantity: number | null; unit: Parameters<typeof formatIngredient>[0]["unit"] }[],
   steps: { text: string }[],
@@ -40,7 +41,7 @@ export async function autoFillMeta(
     { ...recipe, stepCount: steps.length, ingredientCount: ingredients.length },
     mode,
   );
-  if (!plan.times && !plan.tags && !plan.categories) return;
+  if (!plan.times && !plan.tags && !plan.categories && !plan.equipment) return;
 
   try {
     const estimate = await estimateRecipe(
@@ -60,6 +61,7 @@ export async function autoFillMeta(
       tags?: string[];
       course?: Course;
       main_ingredient?: MainIngredient;
+      equipment?: Equipment[];
     } = {};
     if (plan.times) {
       // Recomputing replaces old values, so a part that no longer exists is cleared.
@@ -67,6 +69,7 @@ export async function autoFillMeta(
       if (mode === "all" || estimate.cook_minutes !== null) patch.cook_minutes = estimate.cook_minutes;
     }
     if (plan.tags && estimate.tags.length) patch.tags = estimate.tags;
+    if (plan.equipment && estimate.equipment.length) patch.equipment = estimate.equipment;
     if (plan.categories) {
       // Only the absent one is filled: what the user chose is never overwritten.
       if (recipe.course === null) patch.course = estimate.course;

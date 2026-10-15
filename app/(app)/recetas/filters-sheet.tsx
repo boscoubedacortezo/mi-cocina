@@ -12,7 +12,8 @@ export type FilterValues = {
   tipo?: string;
   principal?: string;
   tag?: string;
-  thermomix?: string;
+  cocina?: string;
+  origen?: string;
 };
 
 type Props = {
@@ -22,7 +23,8 @@ type Props = {
   courses: Option[];
   mains: Option[];
   tags: string[];
-  hasThermomix: boolean;
+  /** How a recipe is cooked: Thermomix first, then the rest that exist. */
+  cooking: Option[];
   hasCookidoo: boolean;
 };
 
@@ -69,7 +71,7 @@ function Sheet({
   courses,
   mains,
   tags,
-  hasThermomix,
+  cooking,
   hasCookidoo,
   onClose,
 }: Props & { onClose: () => void }) {
@@ -114,18 +116,12 @@ function Sheet({
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
         <Group title="Tipo de plato" options={courses} selected={values.tipo} onSelect={set("tipo")} />
         <Group title="Ingrediente principal" options={mains} selected={values.principal} onSelect={set("principal")} />
+        <Group title="Cómo se cocina" options={cooking} selected={values.cocina} onSelect={set("cocina")} />
         <Group
-          title="Thermomix y Cookidoo"
-          options={[
-            ...(hasThermomix || values.thermomix === "1"
-              ? [{ value: "1", label: "Con versión Thermomix" }]
-              : []),
-            ...(hasCookidoo || values.thermomix === "cookidoo"
-              ? [{ value: "cookidoo", label: "De Cookidoo" }]
-              : []),
-          ]}
-          selected={values.thermomix}
-          onSelect={set("thermomix")}
+          title="Origen"
+          options={hasCookidoo || values.origen ? [{ value: "cookidoo", label: "De Cookidoo" }] : []}
+          selected={values.origen}
+          onSelect={set("origen")}
         />
         <Group
           title="Etiquetas"

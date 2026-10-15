@@ -21,12 +21,15 @@ import { prepareImage } from "@/lib/images";
 import {
   COURSE_LABELS,
   COURSES,
+  EQUIPMENT,
+  EQUIPMENT_LABELS,
   MAIN_INGREDIENT_LABELS,
   MAIN_INGREDIENTS,
   RECIPE_IMAGES_BUCKET,
   SHOP_SECTIONS,
   UNITS,
   type Course,
+  type Equipment,
   type MainIngredient,
   type ShopSection,
   type SourceType,
@@ -99,6 +102,7 @@ export function RecipeForm({
   const [mainIngredient, setMainIngredient] = useState<MainIngredient | "">(
     initial?.main_ingredient ?? "",
   );
+  const [equipment, setEquipment] = useState<Equipment[]>(initial?.equipment ?? []);
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagDraft, setTagDraft] = useState("");
   const [sourceUrl, setSourceUrl] = useState(initial?.source_url ?? "");
@@ -135,6 +139,7 @@ export function RecipeForm({
     servings,
     course,
     mainIngredient,
+    equipment,
     tags,
     sourceUrl,
     notes,
@@ -205,6 +210,7 @@ export function RecipeForm({
       tags,
       course: course || null,
       main_ingredient: mainIngredient || null,
+      equipment,
       source_type: sourceType,
       source_url: sourceUrl,
       notes,
@@ -387,6 +393,33 @@ export function RecipeForm({
             </select>
           </div>
         </div>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium">Cómo se cocina</legend>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {EQUIPMENT.map((value) => (
+              <label key={value} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  checked={equipment.includes(value)}
+                  onChange={(e) =>
+                    setEquipment(
+                      e.target.checked
+                        ? [...equipment, value]
+                        : equipment.filter((item) => item !== value),
+                    )
+                  }
+                />
+                {EQUIPMENT_LABELS[value]}
+              </label>
+            ))}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Si no marcas ninguno, la IA lo deduce de los pasos al guardar. La Thermomix se marca sola
+            cuando la receta tiene versión Thermomix o viene de Cookidoo.
+          </p>
+        </fieldset>
 
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${formId}-tags`}>Etiquetas</Label>

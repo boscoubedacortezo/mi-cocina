@@ -8,7 +8,9 @@ import {
   COURSE_LABELS,
   MAIN_INGREDIENT_LABELS,
   RECIPE_IMAGES_BUCKET,
+  THERMOMIX_FILTER,
   type Course,
+  type Equipment,
   type MainIngredient,
   type ShopSection,
   type SourceType,
@@ -21,6 +23,8 @@ export type RecipeSummary = {
   tags: string[];
   course: Course | null;
   main_ingredient: MainIngredient | null;
+  /** How it is cooked, besides the Thermomix (which is derived, see below). */
+  equipment: Equipment[];
   prep_minutes: number | null;
   cook_minutes: number | null;
   image_path: string | null;
@@ -41,6 +45,7 @@ export type RecipeDetail = {
   tags: string[];
   course: Course | null;
   main_ingredient: MainIngredient | null;
+  equipment: Equipment[];
   source_type: SourceType;
   source_url: string | null;
   image_path: string | null;
@@ -79,6 +84,7 @@ type ListRow = {
   tags: string[];
   course: Course | null;
   main_ingredient: MainIngredient | null;
+  equipment: Equipment[] | null;
   prep_minutes: number | null;
   cook_minutes: number | null;
   image_path: string | null;
@@ -94,10 +100,10 @@ export async function listRecipes(filters: {
   tag?: string;
   course?: Course;
   main?: MainIngredient;
-  /** Only recipes that have a Thermomix version. */
-  thermomix?: boolean;
+  /** "thermomix" (own version or from Cookidoo) or one of the other ways of cooking. */
+  cocina?: typeof THERMOMIX_FILTER | Equipment;
   /** Only recipes imported from a Cookidoo link. */
-  cookidoo?: boolean;
+  origen?: "cookidoo";
 }) {
   const supabase = await createClient();
   const tokens = parseQuery(filters.q ?? "");
@@ -110,13 +116,13 @@ export async function listRecipes(filters: {
     "tags",
     "course",
     "main_ingredient",
+    "equipment",
     "prep_minutes",
     "cook_minutes",
     "image_path",
     "source_url",
     ...(searching ? ["description", "notes", "recipe_ingredients(name)"] : []),
-    // "!inner" turns the join into a filter: only recipes with at least one version.
-    `thermomix_versions${filters.thermomix ? "!inner" : ""}(id)`,
+    "thermomix_versions(id)",
   ].join(", ");
   let query = supabase
     .from("recipes")
@@ -126,6 +132,9 @@ export async function listRecipes(filters: {
   if (filters.tag) query = query.contains("tags", [filters.tag]);
   if (filters.course) query = query.eq("course", filters.course);
   if (filters.main) query = query.eq("main_ingredient", filters.main);
+  if (filters.cocina && filters.cocina !== THERMOMIX_FILTER) {
+    query = query.contains("equipment", [filters.cocina]);
+  }
 
   const { data: rows, error } = await query;
   if (error) throw new Error("No se pudieron cargar las recetas.");
@@ -164,6 +173,7 @@ export async function listRecipes(filters: {
     tags: row.tags,
     course: row.course,
     main_ingredient: row.main_ingredient,
+    equipment: row.equipment ?? [],
     prep_minutes: row.prep_minutes,
     cook_minutes: row.cook_minutes,
     image_path: row.image_path,
@@ -171,8 +181,12 @@ export async function listRecipes(filters: {
     has_thermomix: Array.isArray(row.thermomix_versions) && row.thermomix_versions.length > 0,
     from_cookidoo: isCookidooUrl(row.source_url),
   }));
-  // Decided here, with the same rule that draws the card's marker, instead of a URL pattern in SQL.
-  return filters.cookidoo ? recipes.filter((recipe) => recipe.from_cookidoo) : recipes;
+  // Decided here, with the same rules that draw the card, instead of URL patterns in SQL.
+  return recipes.filter(
+    (recipe) =>
+      (filters.origen !== "cookidoo" || recipe.from_cookidoo) &&
+      (filters.cocina !== THERMOMIX_FILTER || recipe.has_thermomix || recipe.from_cookidoo),
+  );
 }
 
 /** What the list filters can offer: only values that at least one recipe has. */
@@ -180,17 +194,22 @@ export async function listFacets() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("recipes")
-    .select("tags, course, main_ingredient, source_url, thermomix_versions(id)");
+    .select("tags, course, main_ingredient, equipment, source_url, thermomix_versions(id)");
   if (error) throw new Error("No se pudieron cargar los filtros.");
 
   const courses = new Set<Course>();
   const mains = new Set<MainIngredient>();
   const tagCounts = new Map<string, number>();
+  const equipment = new Set<Equipment>();
   let hasThermomix = false;
   let hasCookidoo = false;
   for (const row of data) {
     if (Array.isArray(row.thermomix_versions) && row.thermomix_versions.length > 0) hasThermomix = true;
-    if (isCookidooUrl(row.source_url)) hasCookidoo = true;
+    if (isCookidooUrl(row.source_url)) {
+      hasCookidoo = true;
+      hasThermomix = true; // from Cookidoo means cooked in the Thermomix
+    }
+    for (const item of (row.equipment ?? []) as Equipment[]) equipment.add(item);
     if (row.course) courses.add(row.course);
     if (row.main_ingredient) mains.add(row.main_ingredient);
     for (const tag of row.tags as string[]) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
@@ -198,6 +217,7 @@ export async function listFacets() {
   return {
     courses,
     mains,
+    equipment,
     hasThermomix,
     hasCookidoo,
     tags: [...tagCounts.entries()]
@@ -256,6 +276,7 @@ export const getRecipe = cache(async (id: string): Promise<RecipeDetail> => {
     tags: r.tags,
     course: r.course,
     main_ingredient: r.main_ingredient,
+    equipment: r.equipment ?? [],
     source_type: r.source_type,
     source_url: r.source_url,
     image_path: r.image_path,

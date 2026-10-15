@@ -17,6 +17,7 @@ export function planAutoMeta(
     tags: string[];
     course: string | null;
     main_ingredient: string | null;
+    equipment: string[];
     stepCount: number;
     ingredientCount: number;
   },
@@ -25,7 +26,7 @@ export function planAutoMeta(
   // Nothing to work from. A recipe with ingredients but no steps (one that is cooked in
   // Cookidoo) can still be classified, but its times are never guessed.
   if (recipe.stepCount === 0 && recipe.ingredientCount === 0) {
-    return { times: false, tags: false, categories: false };
+    return { times: false, tags: false, categories: false, equipment: false };
   }
   const hasSteps = recipe.stepCount > 0;
 
@@ -35,12 +36,15 @@ export function planAutoMeta(
     hasSteps && (mode === "all" || (recipe.prep_minutes === null && recipe.cook_minutes === null));
   // Recipes saved before categories existed get theirs on the next save.
   const categories = recipe.course === null || recipe.main_ingredient === null;
+  const callsAi = times || categories;
   return {
     times,
     categories,
-    // The AI may decide a recipe needs no tags, so an empty list alone must not
-    // trigger a call on every save: tags ride along when it is called anyway.
-    tags: recipe.tags.length === 0 && (times || categories),
+    // The AI may decide a recipe needs no tags, or that it has no equipment to name, so an
+    // empty list alone must not trigger a call on every save: they ride along when it is
+    // called anyway. Equipment is read from the steps, so a recipe without steps has none.
+    tags: recipe.tags.length === 0 && callsAi,
+    equipment: recipe.equipment.length === 0 && hasSteps && callsAi,
   };
 }
 

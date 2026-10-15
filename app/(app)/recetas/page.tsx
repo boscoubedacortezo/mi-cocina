@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { ChefHat, Clock, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { MainIngredientBadge } from "@/components/main-ingredient-badge";
-import { RecipePlaceholder } from "@/components/recipe-placeholder";
-import { formatMinutes } from "@/lib/recipes/format";
+import { RecipeCard } from "@/components/recipe-card";
 import {
   COURSES,
   COURSE_LABELS,
+  EQUIPMENT,
+  EQUIPMENT_LABELS,
   MAIN_INGREDIENTS,
   MAIN_INGREDIENT_LABELS,
+  THERMOMIX_FILTER,
   type Course,
+  type Equipment,
   type MainIngredient,
 } from "@/lib/recipes/constants";
 import { listFacets, listRecipes } from "@/lib/recipes/queries";
@@ -30,8 +31,10 @@ type Filters = {
   tag?: string;
   tipo?: Course;
   principal?: MainIngredient;
-  /** "1": has a Thermomix version. "cookidoo": imported from Cookidoo. */
-  thermomix?: "1" | "cookidoo";
+  /** How it is cooked: "thermomix" or one of the other ways. */
+  cocina?: typeof THERMOMIX_FILTER | Equipment;
+  /** Where it comes from. */
+  origen?: "cookidoo";
 };
 
 function href(filters: Filters) {
@@ -48,16 +51,17 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
   // Unknown values in the URL are ignored instead of producing an empty list.
   const tipo = COURSES.find((value) => value === first(params.tipo));
   const principal = MAIN_INGREDIENTS.find((value) => value === first(params.principal));
-  const thermomixParam = first(params.thermomix);
-  const thermomix =
-    thermomixParam === "1" || thermomixParam === "cookidoo" ? thermomixParam : undefined;
-  const current: Filters = { q, tag, tipo, principal, thermomix };
+  const cocinaParam = first(params.cocina);
+  const cocina =
+    cocinaParam === THERMOMIX_FILTER ? THERMOMIX_FILTER : EQUIPMENT.find((value) => value === cocinaParam);
+  const origen = first(params.origen) === "cookidoo" ? "cookidoo" : undefined;
+  const current: Filters = { q, tag, tipo, principal, cocina, origen };
 
   const [recipes, facets] = await Promise.all([
-    listRecipes({ q, tag, course: tipo, main: principal, thermomix: thermomix === "1", cookidoo: thermomix === "cookidoo" }),
+    listRecipes({ q, tag, course: tipo, main: principal, cocina, origen }),
     listFacets(),
   ]);
-  const filtering = Boolean(q || tag || tipo || principal || thermomix);
+  const filtering = Boolean(q || tag || tipo || principal || cocina || origen);
 
   // What is applied right now, each with the link that removes just that filter.
   const active = [
@@ -66,10 +70,11 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
       label: MAIN_INGREDIENT_LABELS[principal],
       href: href({ ...current, principal: undefined }),
     },
-    thermomix && {
-      label: thermomix === "cookidoo" ? "De Cookidoo" : "Con Thermomix",
-      href: href({ ...current, thermomix: undefined }),
+    cocina && {
+      label: cocina === THERMOMIX_FILTER ? "Thermomix" : EQUIPMENT_LABELS[cocina],
+      href: href({ ...current, cocina: undefined }),
     },
+    origen && { label: "De Cookidoo", href: href({ ...current, origen: undefined }) },
     tag && { label: tag, href: href({ ...current, tag: undefined }) },
   ].filter((filter): filter is { label: string; href: string } => Boolean(filter));
 
@@ -86,11 +91,12 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
         {tag && <input type="hidden" name="tag" value={tag} />}
         {tipo && <input type="hidden" name="tipo" value={tipo} />}
         {principal && <input type="hidden" name="principal" value={principal} />}
-        {thermomix && <input type="hidden" name="thermomix" value={thermomix} />}
+        {cocina && <input type="hidden" name="cocina" value={cocina} />}
+        {origen && <input type="hidden" name="origen" value={origen} />}
         <SearchInput defaultValue={q} clearHref={href({ ...current, q: undefined })} />
         <FiltersButton
           q={q}
-          current={{ tipo, principal, tag, thermomix }}
+          current={{ tipo, principal, tag, cocina, origen }}
           courses={COURSES.filter((value) => facets.courses.has(value)).map((value) => ({
             value,
             label: COURSE_LABELS[value],
@@ -100,7 +106,13 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
             label: MAIN_INGREDIENT_LABELS[value],
           }))}
           tags={facets.tags}
-          hasThermomix={facets.hasThermomix}
+          cooking={[
+            ...(facets.hasThermomix ? [{ value: THERMOMIX_FILTER, label: "Thermomix" }] : []),
+            ...EQUIPMENT.filter((value) => facets.equipment.has(value)).map((value) => ({
+              value,
+              label: EQUIPMENT_LABELS[value],
+            })),
+          ]}
           hasCookidoo={facets.hasCookidoo}
         />
       </form>
@@ -145,70 +157,11 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
         </div>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
-          {recipes.map((recipe) => {
-            const total = formatMinutes(
-              (recipe.prep_minutes ?? 0) + (recipe.cook_minutes ?? 0),
-            );
-            return (
-              <li key={recipe.id}>
-                <Link
-                  href={`/recetas/${recipe.id}`}
-                  className="flex h-full flex-col overflow-hidden rounded-xl border bg-card transition-colors hover:bg-accent/40"
-                >
-                  {recipe.image_url ? (
-                    <div className="relative aspect-[16/9] bg-muted">
-                      <Image
-                        src={recipe.image_url}
-                        alt=""
-                        fill
-                        sizes="(min-width: 672px) 336px, 100vw"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </div>
-                  ) : (
-                    <RecipePlaceholder recipe={recipe} className="aspect-[16/9]" />
-                  )}
-                  <div className="flex flex-col gap-2 p-3">
-                    <h2 className="font-heading leading-snug font-medium">
-                      {recipe.title}
-                    </h2>
-                    {(total || recipe.has_thermomix || recipe.from_cookidoo) && (
-                      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        {total && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="size-3.5" aria-hidden />
-                            {total}
-                          </span>
-                        )}
-                        {(recipe.from_cookidoo || recipe.has_thermomix) && (
-                          <span
-                            className="flex items-center gap-1 font-medium text-foreground"
-                            title={
-                              recipe.from_cookidoo
-                                ? "Receta de Cookidoo: los pasos están allí"
-                                : "Tiene versión Thermomix"
-                            }
-                          >
-                            <ChefHat className="size-3.5" aria-hidden />
-                            {recipe.from_cookidoo ? "Cookidoo" : "Thermomix"}
-                          </span>
-                        )}
-                      </p>
-                    )}
-                    {(recipe.course || recipe.main_ingredient) && (
-                      <div className="flex flex-wrap gap-1">
-                        {recipe.course && <Badge>{COURSE_LABELS[recipe.course]}</Badge>}
-                        {recipe.main_ingredient && (
-                          <MainIngredientBadge value={recipe.main_ingredient} />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
+          {recipes.map((recipe) => (
+            <li key={recipe.id}>
+              <RecipeCard recipe={recipe} />
+            </li>
+          ))}
         </ul>
       )}
     </div>

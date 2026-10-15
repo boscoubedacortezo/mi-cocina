@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COURSES, MAIN_INGREDIENTS, SHOP_SECTIONS, UNITS } from "@/lib/recipes/constants";
+import { COURSES, EQUIPMENT, MAIN_INGREDIENTS, SHOP_SECTIONS, UNITS } from "@/lib/recipes/constants";
 import { TM_ACCESSORIES, TM_MODES, TM_SPEEDS } from "@/lib/thermomix/constants";
 
 /**
@@ -74,6 +74,7 @@ export const aiEstimateSchema = z.object({
   cook_minutes: z.number().int().nullable(),
   course: z.enum(COURSES),
   main_ingredient: z.enum(MAIN_INGREDIENTS),
+  equipment: z.array(z.enum(EQUIPMENT)),
   tags: z.array(z.string()),
 });
 

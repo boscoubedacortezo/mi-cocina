@@ -62,3 +62,33 @@ export const MAIN_INGREDIENT_LABELS: Record<MainIngredient, string> = {
   huevos: "Huevos",
   fruta_dulce: "Fruta y dulces",
 };
+
+/**
+ * How a recipe is cooked (several allowed). Thermomix is not in this list: it is
+ * derived from having a Thermomix version or coming from Cookidoo.
+ */
+export const EQUIPMENT = [
+  "horno",
+  "sarten",
+  "olla",
+  "olla_presion",
+  "plancha",
+  "freidora_aire",
+  "microondas",
+  "sin_coccion",
+] as const;
+export type Equipment = (typeof EQUIPMENT)[number];
+
+export const EQUIPMENT_LABELS: Record<Equipment, string> = {
+  horno: "Horno",
+  sarten: "Sartén",
+  olla: "Olla",
+  olla_presion: "Olla a presión",
+  plancha: "Plancha",
+  freidora_aire: "Freidora de aire",
+  microondas: "Microondas",
+  sin_coccion: "Sin cocción",
+};
+
+/** Filter value for recipes cooked in the Thermomix (own version or from Cookidoo). */
+export const THERMOMIX_FILTER = "thermomix";

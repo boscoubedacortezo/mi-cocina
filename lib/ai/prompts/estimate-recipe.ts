@@ -25,6 +25,18 @@ export const ESTIMATE_RECIPE_SYSTEM = `Eres el asistente de una app personal de 
   - "fruta_dulce": fruta, repostería y postres.
   Si hay varios ingredientes importantes, elige el que define el plato.
 
+## Con qué se cocina (equipment: una lista, de 0 a 3 valores)
+Con qué se hace la receta según sus pasos. Puede haber varios (un asado que se sella en sartén y se termina en el horno lleva "sarten" y "horno"). Solo los que se usan de verdad para cocinar, no para preparar (cortar o mezclar no cuenta).
+- "horno": horno, gratinar o asar.
+- "sarten": sartén, freír o saltear.
+- "olla": olla, cazuela o puchero.
+- "olla_presion": olla a presión o exprés.
+- "plancha": plancha, parrilla o barbacoa.
+- "freidora_aire": freidora de aire.
+- "microondas": microondas.
+- "sin_coccion": no se cocina (ensaladas, cremas frías, postres de nevera).
+No incluyas la Thermomix: la app ya sabe si una receta es de Thermomix. Si la receta no incluye pasos, devuelve la lista vacía.
+
 ## Etiquetas libres
 - De 0 a 4, en minúsculas, en español y cortas (una o dos palabras), para lo que NO es ni el papel del plato ni el ingrediente principal: dieta (vegetariano, sin gluten), técnica (horno, plancha, guiso), rapidez o la ocasión. Añade "rápido" solo si el total no pasa de 30 minutos.
 - No repitas aquí las categorías de arriba (nada de "postre", "principal", "pescado" o "carne").

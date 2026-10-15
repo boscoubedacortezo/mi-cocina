@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { EquipmentChips } from "@/components/equipment-chips";
 import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
 import { COURSE_LABELS } from "@/lib/recipes/constants";
@@ -103,6 +104,7 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
             ))}
           </div>
         )}
+        <EquipmentChips thermomix={hasTm7 || fromCookidoo} equipment={recipe.equipment} />
         {fromCookidoo && recipe.source_url ? (
           <a
             href={recipe.source_url}

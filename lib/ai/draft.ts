@@ -31,6 +31,7 @@ export function toRecipeDraft(
     // Set by the AI when the recipe is saved.
     course: null,
     main_ingredient: null,
+    equipment: [],
     source_url: sourceUrl,
     notes: ai.notes?.trim().slice(0, 4000) || null,
     ingredients: ai.ingredients

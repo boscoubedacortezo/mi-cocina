@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COURSES, MAIN_INGREDIENTS, SHOP_SECTIONS, SOURCE_TYPES, UNITS } from "./constants";
+import { COURSES, EQUIPMENT, MAIN_INGREDIENTS, SHOP_SECTIONS, SOURCE_TYPES, UNITS } from "./constants";
 
 const optionalText = (max: number) =>
   z
@@ -43,6 +43,10 @@ export const recipeInputSchema = z.object({
     .transform((tags) => [...new Set(tags)]),
   course: z.enum(COURSES).nullable(),
   main_ingredient: z.enum(MAIN_INGREDIENTS).nullable(),
+  equipment: z
+    .array(z.enum(EQUIPMENT))
+    .max(EQUIPMENT.length)
+    .transform((items) => [...new Set(items)]),
   source_type: z.enum(SOURCE_TYPES),
   source_url: z
     .string()
