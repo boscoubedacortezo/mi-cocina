@@ -1,9 +1,11 @@
 "use client";
 
 import { useId, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
+  ArrowLeft,
   Camera,
   Plus,
   Trash2,
@@ -74,13 +76,17 @@ export function RecipeForm({
   recipeId,
   sourceType = "manual",
   initial,
+  cancelHref,
 }: {
   userId: string;
   /** Set when editing an existing recipe; omitted when creating one. */
   recipeId?: string;
   sourceType?: SourceType;
   initial?: RecipeFormInitial;
+  /** Where "Cancelar" goes back to. */
+  cancelHref: string;
 }) {
+  const router = useRouter();
   const formId = useId();
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
@@ -121,6 +127,35 @@ export function RecipeForm({
   const [newImage, setNewImage] = useState<{ blob: Blob; ext: string } | null>(
     null,
   );
+
+  // Compared with the values the form started with to know if leaving loses work.
+  const snapshot = JSON.stringify([
+    title,
+    description,
+    servings,
+    course,
+    mainIngredient,
+    tags,
+    sourceUrl,
+    notes,
+    ingredients.map((row) => [row.name, row.quantity, row.unit, row.shop_section, row.optional]),
+    steps.map((step) => step.text),
+  ]);
+  const [startSnapshot] = useState(snapshot);
+  const dirty =
+    snapshot !== startSnapshot || newImage !== null || imagePath !== (initial?.image_path ?? null);
+
+  function cancel() {
+    // An imported draft costs an AI call: ask even if nothing was edited.
+    const discardsImport = !recipeId && Boolean(initial);
+    if (dirty || discardsImport) {
+      const message = dirty
+        ? "Hay cambios sin guardar. ¿Descartarlos?"
+        : "Se descartará la receta importada. ¿Seguir?";
+      if (!window.confirm(message)) return;
+    }
+    router.push(cancelHref);
+  }
 
   function addTag(raw: string) {
     const tag = raw.trim().toLowerCase();
@@ -227,6 +262,16 @@ export function RecipeForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-8 pb-4" noValidate>
+      {recipeId && (
+        <button
+          type="button"
+          onClick={cancel}
+          disabled={pending}
+          className="-mb-4 flex w-fit items-center gap-1 text-sm text-muted-foreground"
+        >
+          <ArrowLeft className="size-4" aria-hidden /> Volver a la receta
+        </button>
+      )}
       <section className="flex flex-col gap-3">
         <Label>Foto</Label>
         {preview ? (
@@ -584,9 +629,14 @@ export function RecipeForm({
         </div>
       </section>
 
-      <Button type="submit" size="lg" disabled={pending}>
-        {pending ? "Guardando…" : recipeId ? "Guardar cambios" : "Crear receta"}
-      </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" variant="outline" size="lg" onClick={cancel} disabled={pending}>
+          Cancelar
+        </Button>
+        <Button type="submit" size="lg" disabled={pending}>
+          {pending ? "Guardando…" : recipeId ? "Guardar cambios" : "Crear receta"}
+        </Button>
+      </div>
     </form>
   );
 }

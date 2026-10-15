@@ -146,6 +146,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
           key={imported.id}
           userId={userId}
           sourceType={imported.sourceType}
+          cancelHref="/recetas"
           initial={{ ...imported.draft, image_path: null, image_url: null }}
         />
       </div>
@@ -174,7 +175,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
       </div>
 
       {mode === "manual" && (
-        <RecipeForm userId={userId} />
+        <RecipeForm userId={userId} cancelHref="/recetas" />
       )}
 
       {mode === "texto" && (

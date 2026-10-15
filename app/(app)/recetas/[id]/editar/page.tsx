@@ -19,6 +19,7 @@ export default async function EditRecipePage({
       <RecipeForm
         userId={userId}
         recipeId={recipe.id}
+        cancelHref={`/recetas/${recipe.id}`}
         sourceType={recipe.source_type}
         initial={recipe}
       />
