@@ -14,33 +14,26 @@ export type ShoppingItem = {
 
 export async function getShoppingList(weekStart: string) {
   const supabase = await createClient();
-  const { data: menu, error } = await supabase
-    .from("menus")
-    .select("id")
-    .eq("week_start", weekStart)
-    .maybeSingle();
-  if (error) throw new Error("No se pudo cargar la lista de la compra.");
-  if (!menu) return { items: [] as ShoppingItem[], plannedMeals: 0 };
-
+  // Both queries run together; "!inner" filters by the menu's week without a lookup first.
   const [items, planned] = await Promise.all([
     supabase
       .from("shopping_items")
-      .select("id, name, quantity, unit, shop_section, checked, is_manual")
-      .eq("menu_id", menu.id),
+      .select("id, name, quantity, unit, shop_section, checked, is_manual, menus!inner(week_start)")
+      .eq("menus.week_start", weekStart),
     supabase
       .from("menu_items")
-      .select("id", { count: "exact", head: true })
-      .eq("menu_id", menu.id)
+      .select("id, menus!inner(week_start)", { count: "exact", head: true })
+      .eq("menus.week_start", weekStart)
       .not("recipe_id", "is", null),
   ]);
-  if (items.error) throw new Error("No se pudo cargar la lista de la compra.");
+  if (items.error || planned.error) throw new Error("No se pudo cargar la lista de la compra.");
 
   return {
     items: items.data.map(
-      (row): ShoppingItem => ({
-        ...row,
-        quantity: row.quantity === null ? null : Number(row.quantity),
-      }),
+      ({ menus, ...row }): ShoppingItem => {
+        void menus; // only used to filter
+        return { ...row, quantity: row.quantity === null ? null : Number(row.quantity) };
+      },
     ),
     plannedMeals: planned.count ?? 0,
   };
