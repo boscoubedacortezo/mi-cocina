@@ -5,6 +5,9 @@ import { RecipeForm } from "../../_components/recipe-form";
 
 export const metadata: Metadata = { title: "Editar receta" };
 
+// The estimate server action runs under this page: allow time for the model.
+export const maxDuration = 60;
+
 export default async function EditRecipePage({
   params,
 }: PageProps<"/recetas/[id]/editar">) {

@@ -67,3 +67,12 @@ export const aiMenuSchema = z.object({
 });
 
 export type AiMenu = z.infer<typeof aiMenuSchema>;
+
+/** Estimated times and tags for a recipe that lacks them. */
+export const aiEstimateSchema = z.object({
+  prep_minutes: z.number().int().nullable(),
+  cook_minutes: z.number().int().nullable(),
+  tags: z.array(z.string()),
+});
+
+export type AiEstimate = z.infer<typeof aiEstimateSchema>;
