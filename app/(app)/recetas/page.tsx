@@ -178,7 +178,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                     <h2 className="font-heading leading-snug font-medium">
                       {recipe.title}
                     </h2>
-                    {(total || recipe.has_thermomix) && (
+                    {(total || recipe.has_thermomix || recipe.from_cookidoo) && (
                       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                         {total && (
                           <span className="flex items-center gap-1">
@@ -186,13 +186,17 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                             {total}
                           </span>
                         )}
-                        {recipe.has_thermomix && (
+                        {(recipe.from_cookidoo || recipe.has_thermomix) && (
                           <span
                             className="flex items-center gap-1 font-medium text-foreground"
-                            title="Tiene versión Thermomix"
+                            title={
+                              recipe.from_cookidoo
+                                ? "Receta de Cookidoo: los pasos están allí"
+                                : "Tiene versión Thermomix"
+                            }
                           >
                             <ChefHat className="size-3.5" aria-hidden />
-                            Thermomix
+                            {recipe.from_cookidoo ? "Cookidoo" : "Thermomix"}
                           </span>
                         )}
                       </p>

@@ -1,6 +1,7 @@
 import "server-only";
 import { notFound } from "next/navigation";
 import { cache } from "react";
+import { isCookidooUrl } from "./cookidoo-url";
 import { createClient } from "@/lib/supabase/server";
 import {
   RECIPE_IMAGES_BUCKET,
@@ -23,6 +24,8 @@ export type RecipeSummary = {
   image_url: string | null;
   /** True when the recipe has a Thermomix version. */
   has_thermomix: boolean;
+  /** Imported from a Cookidoo link: it is cooked in Cookidoo, so it has no steps here. */
+  from_cookidoo: boolean;
 };
 
 export type RecipeDetail = {
@@ -85,7 +88,7 @@ export async function listRecipes(filters: {
     .from("recipes")
     .select(
       // "!inner" turns the join into a filter: only recipes with at least one version.
-      `id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, image_path, thermomix_versions${filters.thermomix ? "!inner" : ""}(id)`,
+      `id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, image_path, source_url, thermomix_versions${filters.thermomix ? "!inner" : ""}(id)`,
     )
     .order("created_at", { ascending: false });
 
@@ -101,8 +104,9 @@ export async function listRecipes(filters: {
   const urls = await signImageUrls(
     data.flatMap((recipe) => (recipe.image_path ? [recipe.image_path] : [])),
   );
-  return data.map<RecipeSummary>(({ thermomix_versions, ...recipe }) => ({
+  return data.map<RecipeSummary>(({ thermomix_versions, source_url, ...recipe }) => ({
     ...recipe,
+    from_cookidoo: isCookidooUrl(source_url),
     image_url: recipe.image_path ? (urls.get(recipe.image_path) ?? null) : null,
     has_thermomix: Array.isArray(thermomix_versions) && thermomix_versions.length > 0,
   }));

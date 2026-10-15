@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
 import { COURSE_LABELS, MAIN_INGREDIENT_LABELS } from "@/lib/recipes/constants";
+import { isCookidooUrl } from "@/lib/recipes/cookidoo-url";
 import { formatMinutes } from "@/lib/recipes/format";
 import { getRecipe } from "@/lib/recipes/queries";
 import { hasThermomixVersion } from "@/lib/thermomix/queries";
@@ -34,6 +35,7 @@ function hostname(url: string) {
 export default async function RecipePage({ params }: PageProps<"/recetas/[id]">) {
   const { id } = await params;
   const [recipe, hasTm7] = await Promise.all([getRecipe(id), hasThermomixVersion(id)]);
+  const fromCookidoo = isCookidooUrl(recipe.source_url);
   const prep = formatMinutes(recipe.prep_minutes);
   const cook = formatMinutes(recipe.cook_minutes);
 
@@ -100,12 +102,26 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
             ))}
           </div>
         )}
-        <Link
-          href={`/recetas/${recipe.id}/thermomix`}
-          className={buttonVariants({ size: "lg" })}
-        >
-          <ChefHat /> {hasTm7 ? "Ver versión Thermomix" : "Convertir a Thermomix"}
-        </Link>
+        {fromCookidoo && recipe.source_url ? (
+          <a
+            href={recipe.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ size: "lg" })}
+          >
+            <ChefHat /> Abrir en Cookidoo
+          </a>
+        ) : (
+          // Converting needs the recipe's steps.
+          recipe.steps.length > 0 && (
+            <Link
+              href={`/recetas/${recipe.id}/thermomix`}
+              className={buttonVariants({ size: "lg" })}
+            >
+              <ChefHat /> {hasTm7 ? "Ver versión Thermomix" : "Convertir a Thermomix"}
+            </Link>
+          )
+        )}
         <div className="flex gap-2">
           <Link
             href={`/recetas/${recipe.id}/editar`}
@@ -122,6 +138,9 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
         baseServings={recipe.servings}
         ingredients={recipe.ingredients}
         steps={recipe.steps}
+        stepsNote={
+          fromCookidoo ? "Los pasos de esta receta están en Cookidoo. Aquí tienes los ingredientes para el menú y la compra." : undefined
+        }
       />
 
       {recipe.notes && (

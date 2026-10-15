@@ -42,8 +42,9 @@ export async function convertToTm7(
   }
 
   const recipe = await getRecipe(id.data);
-  if (recipe.ingredients.length === 0 && recipe.steps.length === 0) {
-    return { ok: false, error: "La receta no tiene ingredientes ni pasos que convertir." };
+  // Without the original steps the AI would have to invent the method.
+  if (recipe.steps.length === 0) {
+    return { ok: false, error: "La receta no tiene pasos que convertir." };
   }
 
   let draft;

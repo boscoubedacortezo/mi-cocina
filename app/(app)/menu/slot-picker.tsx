@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Link2, Loader2, Search, Sparkles, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ export function SlotPicker({
   pending,
   onSelect,
   onRegenerate,
+  onAddCookidoo,
   onClear,
   onClose,
 }: {
@@ -32,11 +33,16 @@ export function SlotPicker({
   pending: boolean;
   onSelect: (recipeId: string) => void;
   onRegenerate: () => void;
+  /** Imports a Cookidoo recipe from its link and puts it in this slot. */
+  onAddCookidoo: (url: string) => void;
   onClear: () => void;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [query, setQuery] = useState("");
+  const [cookidooUrl, setCookidooUrl] = useState("");
+  // Which action is running, to label the right button while `pending` is shared.
+  const [busy, setBusy] = useState<"ai" | "cookidoo" | null>(null);
 
   useEffect(() => {
     dialog.current?.showModal();
@@ -67,10 +73,51 @@ export function SlotPicker({
       </div>
 
       <div className="flex flex-col gap-3 p-4 pb-2">
-        <Button type="button" variant="outline" onClick={onRegenerate} disabled={pending}>
-          {pending ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {pending ? "Pensando… (hasta un minuto)" : "Sugerir con IA"}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setBusy("ai");
+            onRegenerate();
+          }}
+          disabled={pending}
+        >
+          {pending && busy === "ai" ? <Loader2 className="animate-spin" /> : <Sparkles />}
+          {pending && busy === "ai" ? "Pensando… (hasta un minuto)" : "Sugerir con IA"}
         </Button>
+
+        <form
+          className="flex flex-col gap-1.5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!cookidooUrl.trim()) return;
+            setBusy("cookidoo");
+            onAddCookidoo(cookidooUrl.trim());
+          }}
+        >
+          <label htmlFor="cookidoo-url" className="text-sm font-medium">
+            ¿Receta de Cookidoo?
+          </label>
+          <div className="flex gap-2">
+            <Input
+              id="cookidoo-url"
+              type="url"
+              inputMode="url"
+              value={cookidooUrl}
+              onChange={(e) => setCookidooUrl(e.target.value)}
+              placeholder="Pega aquí el enlace"
+              disabled={pending}
+            />
+            <Button type="submit" variant="outline" disabled={pending || !cookidooUrl.trim()}>
+              {pending && busy === "cookidoo" ? <Loader2 className="animate-spin" /> : <Link2 />}
+              {pending && busy === "cookidoo" ? "Importando…" : "Añadir"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Se guarda en tu recetario (con ingredientes, sin pasos: los tienes en Cookidoo) y queda
+            puesta en este hueco.
+          </p>
+        </form>
         <div className="relative">
           <Search
             className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"

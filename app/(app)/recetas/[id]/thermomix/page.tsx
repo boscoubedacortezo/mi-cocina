@@ -18,7 +18,7 @@ export default async function ThermomixPage({
 }: PageProps<"/recetas/[id]/thermomix">) {
   const { id } = await params;
   const [recipe, version] = await Promise.all([getRecipe(id), getThermomixVersion(id)]);
-  const empty = recipe.ingredients.length === 0 && recipe.steps.length === 0;
+  const empty = recipe.steps.length === 0;
 
   // Versions made before the fingerprint existed cannot be compared.
   const legacy = version !== null && version.source_signature === null;
@@ -81,7 +81,7 @@ export default async function ThermomixPage({
         </>
       ) : empty ? (
         <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
-          La receta no tiene ingredientes ni pasos. Edítala antes de convertirla.
+          La receta no tiene pasos, así que no hay nada que convertir. Si es de Cookidoo, los pasos están allí.
         </p>
       ) : (
         <ConvertPanel recipeId={recipe.id} defaultServings={recipe.servings} replacing={false} />

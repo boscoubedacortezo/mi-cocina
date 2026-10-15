@@ -18,14 +18,21 @@ export function planAutoMeta(
     course: string | null;
     main_ingredient: string | null;
     stepCount: number;
+    ingredientCount: number;
   },
   mode: AutoMetaMode,
 ) {
-  if (recipe.stepCount === 0) return { times: false, tags: false, categories: false };
+  // Nothing to work from. A recipe with ingredients but no steps (one that is cooked in
+  // Cookidoo) can still be classified, but its times are never guessed.
+  if (recipe.stepCount === 0 && recipe.ingredientCount === 0) {
+    return { times: false, tags: false, categories: false };
+  }
+  const hasSteps = recipe.stepCount > 0;
 
   // Tags and categories belong to the user once set: the AI only fills what is
   // empty, in both modes. Times are the AI's, so they are recomputed on "all".
-  const times = mode === "all" || (recipe.prep_minutes === null && recipe.cook_minutes === null);
+  const times =
+    hasSteps && (mode === "all" || (recipe.prep_minutes === null && recipe.cook_minutes === null));
   // Recipes saved before categories existed get theirs on the next save.
   const categories = recipe.course === null || recipe.main_ingredient === null;
   return {

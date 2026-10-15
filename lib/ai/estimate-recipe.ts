@@ -27,7 +27,9 @@ export async function estimateRecipe(
     "Ingredientes:",
     ...input.ingredients.map((line) => `- ${line}`),
     "Pasos:",
-    ...input.steps.map((text, index) => `${index + 1}. ${text}`),
+    ...(input.steps.length
+      ? input.steps.map((text, index) => `${index + 1}. ${text}`)
+      : ["(La receta no incluye pasos: clasifícala por el título y los ingredientes.)"]),
     "",
     existingTags.length
       ? `Etiquetas que el usuario ya utiliza: ${existingTags.join(", ")}`

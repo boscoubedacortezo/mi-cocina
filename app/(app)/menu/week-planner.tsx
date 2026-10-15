@@ -11,6 +11,7 @@ import type { MenuItemView, RecipeOption } from "@/lib/menu/queries";
 import { DEFAULT_SERVINGS, MEALS, slotKey, type Meal } from "@/lib/menu/schema";
 import { cn } from "@/lib/utils";
 import {
+  addCookidooRecipe,
   clearSlot,
   clearWeek,
   generateWeek,
@@ -244,6 +245,17 @@ export function WeekPlanner({
           }
           onRegenerate={() =>
             run(() => regenerateSlot(slotInput(picker)), { success: "Receta propuesta", closePicker: true })
+          }
+          onAddCookidoo={(url) =>
+            run(
+              () =>
+                addCookidooRecipe({
+                  slot: slotInput(picker),
+                  url,
+                  servings: current?.servings ?? DEFAULT_SERVINGS,
+                }),
+              { success: "Receta de Cookidoo añadida", closePicker: true },
+            )
           }
           onClear={() => run(() => clearSlot(slotInput(picker)), { closePicker: true })}
         />

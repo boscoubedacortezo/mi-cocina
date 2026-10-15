@@ -52,11 +52,14 @@ export function ScalableRecipe({
   baseServings,
   ingredients,
   steps,
+  stepsNote,
 }: {
   recipeId: string;
   baseServings: number;
   ingredients: Ingredient[];
   steps: { id: string; text: string }[];
+  /** Shown instead of "Sin pasos" when the recipe has none on purpose. */
+  stepsNote?: string;
 }) {
   const [servings, setServings] = useState(baseServings);
   const [adaptation, setAdaptation] = useState<Adaptation | null>(null);
@@ -154,7 +157,7 @@ export function ScalableRecipe({
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-lg font-semibold">Preparación</h2>
         {steps.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin pasos.</p>
+          <p className="text-sm text-muted-foreground">{stepsNote ?? "Sin pasos."}</p>
         ) : (
           <>
             {changed && bigChange && (
