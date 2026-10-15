@@ -82,6 +82,8 @@ export async function listRecipes(filters: {
   main?: MainIngredient;
   /** Only recipes that have a Thermomix version. */
   thermomix?: boolean;
+  /** Only recipes imported from a Cookidoo link. */
+  cookidoo?: boolean;
 }) {
   const supabase = await createClient();
   let query = supabase
@@ -104,12 +106,14 @@ export async function listRecipes(filters: {
   const urls = await signImageUrls(
     data.flatMap((recipe) => (recipe.image_path ? [recipe.image_path] : [])),
   );
-  return data.map<RecipeSummary>(({ thermomix_versions, source_url, ...recipe }) => ({
+  const recipes = data.map<RecipeSummary>(({ thermomix_versions, source_url, ...recipe }) => ({
     ...recipe,
     from_cookidoo: isCookidooUrl(source_url),
     image_url: recipe.image_path ? (urls.get(recipe.image_path) ?? null) : null,
     has_thermomix: Array.isArray(thermomix_versions) && thermomix_versions.length > 0,
   }));
+  // Decided here, with the same rule that draws the card's marker, instead of a URL pattern in SQL.
+  return filters.cookidoo ? recipes.filter((recipe) => recipe.from_cookidoo) : recipes;
 }
 
 /** What the list filters can offer: only values that at least one recipe has. */
@@ -117,15 +121,17 @@ export async function listFacets() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("recipes")
-    .select("tags, course, main_ingredient, thermomix_versions(id)");
+    .select("tags, course, main_ingredient, source_url, thermomix_versions(id)");
   if (error) throw new Error("No se pudieron cargar los filtros.");
 
   const courses = new Set<Course>();
   const mains = new Set<MainIngredient>();
   const tagCounts = new Map<string, number>();
   let hasThermomix = false;
+  let hasCookidoo = false;
   for (const row of data) {
     if (Array.isArray(row.thermomix_versions) && row.thermomix_versions.length > 0) hasThermomix = true;
+    if (isCookidooUrl(row.source_url)) hasCookidoo = true;
     if (row.course) courses.add(row.course);
     if (row.main_ingredient) mains.add(row.main_ingredient);
     for (const tag of row.tags as string[]) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
@@ -134,6 +140,7 @@ export async function listFacets() {
     courses,
     mains,
     hasThermomix,
+    hasCookidoo,
     tags: [...tagCounts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
       .map(([tag]) => tag),

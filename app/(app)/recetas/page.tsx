@@ -29,7 +29,8 @@ type Filters = {
   tag?: string;
   tipo?: Course;
   principal?: MainIngredient;
-  thermomix?: "1";
+  /** "1": has a Thermomix version. "cookidoo": imported from Cookidoo. */
+  thermomix?: "1" | "cookidoo";
 };
 
 function href(filters: Filters) {
@@ -46,11 +47,13 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
   // Unknown values in the URL are ignored instead of producing an empty list.
   const tipo = COURSES.find((value) => value === first(params.tipo));
   const principal = MAIN_INGREDIENTS.find((value) => value === first(params.principal));
-  const thermomix = first(params.thermomix) === "1" ? "1" : undefined;
+  const thermomixParam = first(params.thermomix);
+  const thermomix =
+    thermomixParam === "1" || thermomixParam === "cookidoo" ? thermomixParam : undefined;
   const current: Filters = { q, tag, tipo, principal, thermomix };
 
   const [recipes, facets] = await Promise.all([
-    listRecipes({ q, tag, course: tipo, main: principal, thermomix: Boolean(thermomix) }),
+    listRecipes({ q, tag, course: tipo, main: principal, thermomix: thermomix === "1", cookidoo: thermomix === "cookidoo" }),
     listFacets(),
   ]);
   const filtering = Boolean(q || tag || tipo || principal || thermomix);
@@ -62,7 +65,10 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
       label: MAIN_INGREDIENT_LABELS[principal],
       href: href({ ...current, principal: undefined }),
     },
-    thermomix && { label: "Con Thermomix", href: href({ ...current, thermomix: undefined }) },
+    thermomix && {
+      label: thermomix === "cookidoo" ? "De Cookidoo" : "Con Thermomix",
+      href: href({ ...current, thermomix: undefined }),
+    },
     tag && { label: tag, href: href({ ...current, tag: undefined }) },
   ].filter((filter): filter is { label: string; href: string } => Boolean(filter));
 
@@ -107,6 +113,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
           }))}
           tags={facets.tags}
           hasThermomix={facets.hasThermomix}
+          hasCookidoo={facets.hasCookidoo}
         />
       </form>
 

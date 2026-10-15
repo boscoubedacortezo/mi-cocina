@@ -23,6 +23,7 @@ type Props = {
   mains: Option[];
   tags: string[];
   hasThermomix: boolean;
+  hasCookidoo: boolean;
 };
 
 function Group({
@@ -62,7 +63,16 @@ function Group({
 }
 
 /** The sheet itself: mounted only while open, so it always starts from the URL's filters. */
-function Sheet({ q, current, courses, mains, tags, hasThermomix, onClose }: Props & { onClose: () => void }) {
+function Sheet({
+  q,
+  current,
+  courses,
+  mains,
+  tags,
+  hasThermomix,
+  hasCookidoo,
+  onClose,
+}: Props & { onClose: () => void }) {
   const router = useRouter();
   const dialog = useRef<HTMLDialogElement>(null);
   const [values, setValues] = useState<FilterValues>(current);
@@ -104,14 +114,19 @@ function Sheet({ q, current, courses, mains, tags, hasThermomix, onClose }: Prop
       <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
         <Group title="Tipo de plato" options={courses} selected={values.tipo} onSelect={set("tipo")} />
         <Group title="Ingrediente principal" options={mains} selected={values.principal} onSelect={set("principal")} />
-        {(hasThermomix || values.thermomix) && (
-          <Group
-            title="Thermomix"
-            options={[{ value: "1", label: "Con versión Thermomix" }]}
-            selected={values.thermomix}
-            onSelect={set("thermomix")}
-          />
-        )}
+        <Group
+          title="Thermomix y Cookidoo"
+          options={[
+            ...(hasThermomix || values.thermomix === "1"
+              ? [{ value: "1", label: "Con versión Thermomix" }]
+              : []),
+            ...(hasCookidoo || values.thermomix === "cookidoo"
+              ? [{ value: "cookidoo", label: "De Cookidoo" }]
+              : []),
+          ]}
+          selected={values.thermomix}
+          onSelect={set("thermomix")}
+        />
         <Group
           title="Etiquetas"
           options={tags.map((tag) => ({ value: tag, label: tag }))}
