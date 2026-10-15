@@ -185,7 +185,8 @@ export async function fetchPublicImage(rawUrl: string, allowHost: (hostname: str
         headers: {
           "user-agent":
             "Mozilla/5.0 (compatible; MiCocinaBot/1.0; personal recipe importer)",
-          accept: "image/avif,image/webp,image/jpeg,image/png,image/*;q=0.8",
+          // JPEG first: if AVIF or WebP are offered, CDNs serve them, and storage only takes JPEG/PNG/WebP.
+          accept: "image/jpeg,image/png;q=0.9",
         },
       });
     } catch (error) {
@@ -202,7 +203,9 @@ export async function fetchPublicImage(rawUrl: string, allowHost: (hostname: str
 
     const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim();
     if (!/^image\/(jpeg|png|webp)$/.test(contentType)) {
-      throw new ImportError("La imagen no tiene un formato admitido.");
+      throw new ImportError(
+        `La imagen no tiene un formato admitido (${contentType || "tipo desconocido"}).`,
+      );
     }
     if (Number(response.headers.get("content-length") ?? 0) > MAX_IMAGE_BYTES) {
       throw new ImportError("La imagen es demasiado grande.");
