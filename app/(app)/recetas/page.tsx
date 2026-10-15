@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ChefHat, Clock, Plus, Search } from "lucide-react";
+import { ChefHat, Clock, Plus, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
 import { Input } from "@/components/ui/input";
 import { formatMinutes } from "@/lib/recipes/format";
@@ -16,6 +16,7 @@ import {
   type MainIngredient,
 } from "@/lib/recipes/constants";
 import { listFacets, listRecipes } from "@/lib/recipes/queries";
+import { FiltersButton } from "./filters-sheet";
 
 export const metadata: Metadata = { title: "Recetas" };
 
@@ -38,41 +39,6 @@ function href(filters: Filters) {
   return qs ? `/recetas?${qs}` : "/recetas";
 }
 
-/** A horizontally scrollable row of filter chips with an "all" option. */
-function FilterRow({
-  label,
-  allHref,
-  active,
-  options,
-}: {
-  label: string;
-  allHref: string;
-  active: string | undefined;
-  options: { value: string; label: string; href: string }[];
-}) {
-  if (options.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        <Link href={allHref} aria-current={!active ? "true" : undefined}>
-          <Badge variant={!active ? "default" : "outline"}>Todas</Badge>
-        </Link>
-        {options.map((option) => (
-          <Link
-            key={option.value}
-            href={option.href}
-            aria-current={active === option.value ? "true" : undefined}
-            className="shrink-0"
-          >
-            <Badge variant={active === option.value ? "default" : "outline"}>{option.label}</Badge>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default async function RecipesPage({ searchParams }: PageProps<"/recetas">) {
   const params = await searchParams;
   const q = first(params.q);
@@ -88,6 +54,17 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
     listFacets(),
   ]);
   const filtering = Boolean(q || tag || tipo || principal || thermomix);
+
+  // What is applied right now, each with the link that removes just that filter.
+  const active = [
+    tipo && { label: COURSE_LABELS[tipo], href: href({ ...current, tipo: undefined }) },
+    principal && {
+      label: MAIN_INGREDIENT_LABELS[principal],
+      href: href({ ...current, principal: undefined }),
+    },
+    thermomix && { label: "Con Thermomix", href: href({ ...current, thermomix: undefined }) },
+    tag && { label: tag, href: href({ ...current, tag: undefined }) },
+  ].filter((filter): filter is { label: string; href: string } => Boolean(filter));
 
   return (
     <div className="flex flex-col gap-4">
@@ -117,57 +94,42 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
             className="pl-8"
           />
         </div>
-        <Button type="submit" variant="secondary">
-          Buscar
-        </Button>
+        <FiltersButton
+          q={q}
+          current={{ tipo, principal, tag, thermomix }}
+          courses={COURSES.filter((value) => facets.courses.has(value)).map((value) => ({
+            value,
+            label: COURSE_LABELS[value],
+          }))}
+          mains={MAIN_INGREDIENTS.filter((value) => facets.mains.has(value)).map((value) => ({
+            value,
+            label: MAIN_INGREDIENT_LABELS[value],
+          }))}
+          tags={facets.tags}
+          hasThermomix={facets.hasThermomix}
+        />
       </form>
 
-      <FilterRow
-        label="Tipo de plato"
-        allHref={href({ ...current, tipo: undefined })}
-        active={tipo}
-        options={COURSES.filter((value) => facets.courses.has(value)).map((value) => ({
-          value,
-          label: COURSE_LABELS[value],
-          href: href({ ...current, tipo: value }),
-        }))}
-      />
-      <FilterRow
-        label="Ingrediente principal"
-        allHref={href({ ...current, principal: undefined })}
-        active={principal}
-        options={MAIN_INGREDIENTS.filter((value) => facets.mains.has(value)).map((value) => ({
-          value,
-          label: MAIN_INGREDIENT_LABELS[value],
-          href: href({ ...current, principal: value }),
-        }))}
-      />
-      <FilterRow
-        label="Thermomix"
-        allHref={href({ ...current, thermomix: undefined })}
-        active={thermomix}
-        options={
-          facets.hasThermomix || thermomix
-            ? [
-                {
-                  value: "1",
-                  label: "Con versión Thermomix",
-                  href: href({ ...current, thermomix: "1" }),
-                },
-              ]
-            : []
-        }
-      />
-      <FilterRow
-        label="Etiquetas"
-        allHref={href({ ...current, tag: undefined })}
-        active={tag}
-        options={facets.tags.map((value) => ({
-          value,
-          label: value,
-          href: href({ ...current, tag: value }),
-        }))}
-      />
+      {active.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {active.map((filter) => (
+            <Link key={filter.label} href={filter.href} aria-label={`Quitar filtro ${filter.label}`}>
+              <Badge variant="secondary" className="gap-1 px-2.5 py-1 text-sm">
+                {filter.label}
+                <X className="size-3.5" aria-hidden />
+              </Badge>
+            </Link>
+          ))}
+          {active.length > 1 && (
+            <Link
+              href={href({ q })}
+              className="text-sm text-muted-foreground underline underline-offset-4"
+            >
+              Quitar todos
+            </Link>
+          )}
+        </div>
+      )}
 
       {recipes.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center">
@@ -233,17 +195,12 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                         {total}
                       </p>
                     )}
-                    {(recipe.course || recipe.main_ingredient || recipe.tags.length > 0) && (
+                    {(recipe.course || recipe.main_ingredient) && (
                       <div className="flex flex-wrap gap-1">
                         {recipe.course && <Badge>{COURSE_LABELS[recipe.course]}</Badge>}
                         {recipe.main_ingredient && (
                           <Badge variant="outline">{MAIN_INGREDIENT_LABELS[recipe.main_ingredient]}</Badge>
                         )}
-                        {recipe.tags.map((t) => (
-                          <Badge key={t} variant="secondary">
-                            {t}
-                          </Badge>
-                        ))}
                       </div>
                     )}
                   </div>
