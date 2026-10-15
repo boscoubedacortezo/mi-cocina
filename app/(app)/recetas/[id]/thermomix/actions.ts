@@ -118,3 +118,20 @@ export async function saveThermomixVersion(
   refresh(rid.data);
   return { ok: true, notes: null };
 }
+
+/**
+ * Removes the Thermomix version of a recipe, for when it did not work out and the
+ * recipe is made the traditional way. The recipe itself is not touched.
+ */
+export async function deleteThermomixVersion(recipeId: unknown): Promise<TmResult> {
+  const { supabase } = await requireUser();
+  const id = idSchema.safeParse(recipeId);
+  if (!id.success) return { ok: false, error: "Receta no válida." };
+
+  const { error } = await supabase.from("thermomix_versions").delete().eq("recipe_id", id.data);
+  if (error) return { ok: false, error: "No se pudo eliminar la versión Thermomix." };
+
+  refresh(id.data);
+  revalidatePath("/recetas");
+  return { ok: true, notes: null };
+}

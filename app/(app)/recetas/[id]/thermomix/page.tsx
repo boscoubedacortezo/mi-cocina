@@ -6,6 +6,7 @@ import { getRecipe } from "@/lib/recipes/queries";
 import { resolveTotalMinutes } from "@/lib/thermomix/cookidoo";
 import { getThermomixVersion } from "@/lib/thermomix/queries";
 import { ConvertPanel } from "./convert-panel";
+import { DeleteVersionButton } from "./delete-version-button";
 import { VersionView } from "./version-view";
 
 export const metadata: Metadata = { title: "Thermomix TM7" };
@@ -78,6 +79,7 @@ export default async function ThermomixPage({
               <ConvertPanel recipeId={recipe.id} defaultServings={recipe.servings} replacing />
             </div>
           </details>
+          <DeleteVersionButton recipeId={recipe.id} />
         </>
       ) : empty ? (
         <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">

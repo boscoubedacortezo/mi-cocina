@@ -166,14 +166,29 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
             );
           })}
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1.5">
+        {/* One above the other on phones: date fields have a minimum width of their own
+            (iOS especially) and overlap when squeezed into two columns. */}
+        <div className="grid grid-cols-1 gap-2 min-[480px]:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <Label htmlFor="range-start">Desde</Label>
-            <Input id="range-start" type="date" value={start} onChange={(e) => applyRange(e.target.value, end)} />
+            <Input
+              id="range-start"
+              type="date"
+              className="w-full min-w-0"
+              value={start}
+              onChange={(e) => applyRange(e.target.value, end)}
+            />
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <Label htmlFor="range-end">Hasta</Label>
-            <Input id="range-end" type="date" min={start} value={end} onChange={(e) => applyRange(start, e.target.value)} />
+            <Input
+              id="range-end"
+              type="date"
+              className="w-full min-w-0"
+              min={start}
+              value={end}
+              onChange={(e) => applyRange(start, e.target.value)}
+            />
           </div>
         </div>
         <Button
