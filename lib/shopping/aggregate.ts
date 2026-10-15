@@ -73,7 +73,9 @@ export function aggregateIngredients(
       const normalized = normalizeName(name);
       if (!normalized || isTapWater(name)) continue;
 
-      const { family, toBase } = familyOf(item.unit);
+      // "1 cebolla" with no unit is a count, like "1 ud de cebolla": they add up.
+      const unit = item.unit ?? (item.quantity !== null ? "ud" : null);
+      const { family, toBase } = familyOf(unit);
       const key = `${normalized}|${family}`;
       const line = lines.get(key) ?? {
         name,

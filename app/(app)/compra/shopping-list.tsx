@@ -2,7 +2,7 @@
 
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ClipboardCopy, ListRestart, Loader2, Plus, Trash2, Undo2 } from "lucide-react";
+import { Check, ClipboardCopy, Plus, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,14 +12,14 @@ import { copyText } from "@/lib/clipboard";
 import { daysInRange, formatDateRange, mondayOf } from "@/lib/menu/dates";
 import { SHOP_SECTIONS, UNITS, type ShopSection, type Unit } from "@/lib/recipes/constants";
 import { buildShoppingText, capitalize, formatAmount } from "@/lib/shopping/format";
-import type { ShoppingItem, ShoppingList as List } from "@/lib/shopping/queries";
+import type { ShoppingEntry, ShoppingListData } from "@/lib/shopping/queries";
 import { cn, selectClass } from "@/lib/utils";
 import {
   addShoppingItem,
-  generateShoppingList,
-  removeShoppingItem,
-  restoreShoppingItem,
-  toggleShoppingItem,
+  deleteManualItem,
+  setLineState,
+  setShoppingRange,
+  toggleManualItem,
 } from "./actions";
 
 type Preset = { label: string; start: string; end: string };
@@ -28,7 +28,7 @@ type OptimisticAction =
   | { type: "toggle"; id: string; checked: boolean }
   | { type: "remove"; id: string };
 
-export function ShoppingList({ list, presets }: { list: List; presets: Preset[] }) {
+export function ShoppingList({ list, presets }: { list: ShoppingListData; presets: Preset[] }) {
   const [pending, startTransition] = useTransition();
   const [visible, applyOptimistic] = useOptimistic(list.items, (state, action: OptimisticAction) =>
     action.type === "toggle"
@@ -36,11 +36,21 @@ export function ShoppingList({ list, presets }: { list: List; presets: Preset[] 
       : state.filter((item) => item.id !== action.id),
   );
 
-  // The period being edited; starts as the saved one, or the first quick choice.
-  const [start, setStart] = useState(list.range?.start ?? presets[0].start);
-  const [end, setEnd] = useState(list.range?.end ?? presets[0].end);
-  const changedRange = !list.range || list.range.start !== start || list.range.end !== end;
-  const rangeValid = Boolean(start && end && end >= start && daysInRange(start, end) <= 63);
+  // The period; changing it saves it, and the list follows the menu for those days.
+  const [start, setStart] = useState(list.range.start);
+  const [end, setEnd] = useState(list.range.end);
+  const rangeValid = (from: string, to: string) =>
+    Boolean(from && to && to >= from && daysInRange(from, to) <= 63);
+
+  function applyRange(nextStart: string, nextEnd: string) {
+    setStart(nextStart);
+    setEnd(nextEnd);
+    if (!rangeValid(nextStart, nextEnd)) return;
+    startTransition(async () => {
+      const result = await setShoppingRange({ start: nextStart, end: nextEnd });
+      if (!result.ok) toast.error(result.error);
+    });
+  }
 
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
@@ -61,37 +71,37 @@ export function ShoppingList({ list, presets }: { list: List; presets: Preset[] 
     [visible],
   );
   const bought = visible.filter((item) => item.checked).length;
-  const hasGenerated = visible.some((item) => !item.is_manual) || list.removed.length > 0;
 
-  function generate() {
+  /** Marks a line from the menu (bought, removed, pending) or acts on one added by hand. */
+  function mark(item: ShoppingEntry, state: "pending" | "checked" | "removed") {
     startTransition(async () => {
-      const result = await generateShoppingList({ start, end });
+      // Immediate feedback, in the same step as the server call so it does not flicker.
+      applyOptimistic(
+        state === "removed"
+          ? { type: "remove", id: item.id }
+          : { type: "toggle", id: item.id, checked: state === "checked" },
+      );
+      const result = item.key
+        ? await setLineState({
+            range: { start, end },
+            item: {
+              key: item.key,
+              name: item.name,
+              quantity: item.quantity,
+              unit: item.unit,
+              shop_section: item.shop_section,
+            },
+            state,
+          })
+        : state === "removed"
+          ? await deleteManualItem(item.id)
+          : await toggleManualItem(item.id, state === "checked");
       if (!result.ok) toast.error(result.error);
-      else toast.success("Lista generada", { description: result.message ?? undefined });
     });
   }
 
-  function toggle(item: ShoppingItem) {
-    startTransition(async () => {
-      applyOptimistic({ type: "toggle", id: item.id, checked: !item.checked });
-      const result = await toggleShoppingItem(item.id, !item.checked);
-      if (!result.ok) toast.error(result.error);
-    });
-  }
-
-  function remove(item: ShoppingItem) {
-    startTransition(async () => {
-      applyOptimistic({ type: "remove", id: item.id });
-      const result = await removeShoppingItem(item.id);
-      if (!result.ok) toast.error(result.error);
-    });
-  }
-
-  function restore(item: ShoppingItem) {
-    startTransition(async () => {
-      const result = await restoreShoppingItem(item.id);
-      if (!result.ok) toast.error(result.error);
-    });
+  function toggle(item: ShoppingEntry) {
+    mark(item, item.checked ? "pending" : "checked");
   }
 
   function add(event: React.FormEvent) {
@@ -104,10 +114,13 @@ export function ShoppingList({ list, presets }: { list: List; presets: Preset[] 
     }
     startTransition(async () => {
       const result = await addShoppingItem({
-        name,
-        quantity: parsedQuantity,
-        unit: unit || null,
-        shop_section: section,
+        range: { start, end },
+        item: {
+          name,
+          quantity: parsedQuantity,
+          unit: unit || null,
+          shop_section: section,
+        },
       });
       if (!result.ok) {
         toast.error(result.error);
@@ -143,10 +156,7 @@ export function ShoppingList({ list, presets }: { list: List; presets: Preset[] 
                 key={preset.label}
                 type="button"
                 aria-pressed={active}
-                onClick={() => {
-                  setStart(preset.start);
-                  setEnd(preset.end);
-                }}
+                onClick={() => applyRange(preset.start, preset.end)}
               >
                 <Badge variant={active ? "default" : "outline"} className="px-3 py-1 text-sm">
                   {preset.label}
@@ -158,44 +168,34 @@ export function ShoppingList({ list, presets }: { list: List; presets: Preset[] 
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="range-start">Desde</Label>
-            <Input id="range-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <Input id="range-start" type="date" value={start} onChange={(e) => applyRange(e.target.value, end)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="range-end">Hasta</Label>
-            <Input id="range-end" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} />
+            <Input id="range-end" type="date" min={start} value={end} onChange={(e) => applyRange(start, e.target.value)} />
           </div>
         </div>
-        <div className="grid grid-cols-[1fr_auto] gap-2">
-          <Button type="button" size="lg" onClick={generate} disabled={pending || !rangeValid}>
-            {pending ? <Loader2 className="animate-spin" /> : <ListRestart />}
-            {hasGenerated ? "Regenerar con este periodo" : "Generar lista"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            onClick={copyList}
-            disabled={visible.length === 0}
-            aria-label="Copiar lista"
-          >
-            <ClipboardCopy />
-            <span className="hidden sm:inline">Copiar</span>
-          </Button>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={copyList}
+          disabled={visible.length === 0}
+        >
+          <ClipboardCopy /> Copiar lista
+        </Button>
         <p className="text-sm text-muted-foreground">
-          {!rangeValid ? (
+          {!rangeValid(start, end) ? (
             "Elige un periodo válido (la fecha final no puede ser anterior a la inicial, máximo 9 semanas)."
-          ) : changedRange ? (
-            `Se calculará con las comidas con receta del ${formatDateRange(start, end)}.`
           ) : list.plannedMeals === 0 ? (
             <>
               No hay recetas en el menú de esos días.{" "}
               <Link href={`/menu?semana=${mondayOf(start)}`} className="underline underline-offset-4">
-                Planificar
+                Planificar el menú
               </Link>
             </>
           ) : (
-            `Calculada con ${list.plannedMeals} ${list.plannedMeals === 1 ? "comida" : "comidas"} del ${formatDateRange(start, end)}. Si cambias el menú, regenera: se mantienen tus artículos, lo marcado y lo que quitaste.`
+            `La lista se actualiza sola con el menú: ${list.plannedMeals} ${list.plannedMeals === 1 ? "comida" : "comidas"} del ${formatDateRange(start, end)}.`
           )}
         </p>
       </section>
@@ -290,14 +290,21 @@ export function ShoppingList({ list, presets }: { list: List; presets: Preset[] 
                           <span className="truncate">{capitalize(item.name)}</span>
                           {item.is_manual && <Badge variant="outline">Manual</Badge>}
                         </span>
-                        {amount && <span className="shrink-0 text-sm">{amount}</span>}
+                        <span className="flex shrink-0 flex-col items-end">
+                          {amount && <span className="text-sm">{amount}</span>}
+                          {item.changedFrom && (
+                            <span className="text-xs text-muted-foreground">
+                              antes {item.changedFrom}
+                            </span>
+                          )}
+                        </span>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => remove(item)}
-                        aria-label={`Quitar ${item.name} de la lista (ya lo tengo)`}
+                        onClick={() => mark(item, "removed")}
+                        aria-label={item.is_manual ? `Borrar ${item.name}` : `Quitar ${item.name} de la lista (ya lo tengo)`}
                       >
                         <Trash2 />
                       </Button>
@@ -327,7 +334,7 @@ export function ShoppingList({ list, presets }: { list: List; presets: Preset[] 
                     variant="ghost"
                     size="sm"
                     disabled={pending}
-                    onClick={() => restore(item)}
+                    onClick={() => mark(item, "pending")}
                     aria-label={`Volver a añadir ${item.name}`}
                   >
                     <Undo2 /> Añadir

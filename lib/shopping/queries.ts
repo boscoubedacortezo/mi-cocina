@@ -1,59 +1,81 @@
 import "server-only";
-import type { ShopSection, Unit } from "@/lib/recipes/constants";
 import { createClient } from "@/lib/supabase/server";
+import { computeShoppingLines } from "./compute";
+import { applyMarks, type Mark, type ShoppingEntry } from "./marks";
 
-export type ShoppingItem = {
-  id: string;
-  name: string;
-  quantity: number | null;
-  unit: Unit | null;
-  shop_section: ShopSection;
-  checked: boolean;
-  is_manual: boolean;
-};
+export type { ShoppingEntry };
 
-export type ShoppingList = {
-  /** Null until a list is generated or a manual item is added. */
-  range: { start: string; end: string } | null;
-  items: ShoppingItem[];
-  /** Generated items the user removed ("I already have it"), kept hidden. */
-  removed: ShoppingItem[];
-  /** Meals with a recipe inside the saved range. */
+export type ShoppingListData = {
+  range: { start: string; end: string };
+  /** False until the user changes the period or marks something. */
+  saved: boolean;
+  items: ShoppingEntry[];
+  /** Lines the user removed because they already have them. */
+  removed: ShoppingEntry[];
+  /** Meals with a recipe inside the range. */
   plannedMeals: number;
 };
 
-/** The user's single active list. */
-export async function getShoppingList(): Promise<ShoppingList> {
+/**
+ * The user's list: lines computed from the menu now, with the user's marks applied,
+ * plus the items added by hand. Nothing generated is stored.
+ */
+export async function getShoppingList(defaultRange: { start: string; end: string }): Promise<ShoppingListData> {
   const supabase = await createClient();
   const { data: list, error } = await supabase
     .from("shopping_lists")
     .select("id, start_date, end_date")
     .maybeSingle();
   if (error) throw new Error("No se pudo cargar la lista de la compra.");
-  if (!list) return { range: null, items: [], removed: [], plannedMeals: 0 };
 
-  const [items, planned] = await Promise.all([
-    supabase
-      .from("shopping_items")
-      .select("id, name, quantity, unit, shop_section, checked, is_manual, excluded")
-      .eq("list_id", list.id),
-    supabase
-      .from("menu_items")
-      .select("id", { count: "exact", head: true })
-      .gte("date", list.start_date)
-      .lte("date", list.end_date)
-      .not("recipe_id", "is", null),
+  const range = list ? { start: list.start_date as string, end: list.end_date as string } : defaultRange;
+  const [computed, stored] = await Promise.all([
+    computeShoppingLines(supabase, range),
+    list
+      ? supabase
+          .from("shopping_items")
+          .select("id, key, name, quantity, unit, shop_section, checked, excluded, is_manual, marked_quantity")
+          .eq("list_id", list.id)
+      : Promise.resolve({ data: [], error: null }),
   ]);
-  if (items.error || planned.error) throw new Error("No se pudo cargar la lista de la compra.");
+  if (stored.error) throw new Error("No se pudo cargar la lista de la compra.");
 
-  const rows = items.data.map(({ excluded, ...row }) => ({
-    item: { ...row, quantity: row.quantity === null ? null : Number(row.quantity) } as ShoppingItem,
-    excluded: Boolean(excluded),
-  }));
-  return {
-    range: { start: list.start_date, end: list.end_date },
-    items: rows.filter((row) => !row.excluded).map((row) => row.item),
-    removed: rows.filter((row) => row.excluded).map((row) => row.item),
-    plannedMeals: planned.count ?? 0,
-  };
+  const rows = stored.data as {
+    id: string;
+    key: string | null;
+    name: string;
+    quantity: number | string | null;
+    unit: ShoppingEntry["unit"];
+    shop_section: ShoppingEntry["shop_section"];
+    checked: boolean;
+    excluded: boolean;
+    is_manual: boolean;
+    marked_quantity: number | string | null;
+  }[];
+
+  const marks: Mark[] = rows
+    .filter((row) => !row.is_manual && row.key)
+    .map((row) => ({
+      key: row.key as string,
+      checked: row.checked,
+      excluded: row.excluded,
+      marked_quantity: row.marked_quantity === null ? null : Number(row.marked_quantity),
+      unit: row.unit,
+    }));
+  const manual: ShoppingEntry[] = rows
+    .filter((row) => row.is_manual)
+    .map((row) => ({
+      id: row.id,
+      key: null,
+      name: row.name,
+      quantity: row.quantity === null ? null : Number(row.quantity),
+      unit: row.unit,
+      shop_section: row.shop_section,
+      checked: row.checked,
+      is_manual: true,
+      changedFrom: null,
+    }));
+
+  const { items, removed } = applyMarks(computed.lines, marks);
+  return { range, saved: Boolean(list), items: [...items, ...manual], removed, plannedMeals: computed.plannedMeals };
 }

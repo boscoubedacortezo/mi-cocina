@@ -8,7 +8,6 @@ export const metadata: Metadata = { title: "Lista de la compra" };
 
 export default async function ShoppingPage() {
   const today = todayInMadrid();
-  const list = await getShoppingList();
 
   // Quick choices for the period; the first one is the default.
   const presets = [
@@ -17,5 +16,6 @@ export default async function ShoppingPage() {
     { label: "Resto del mes", start: today, end: lastDayOfMonth(today) },
   ];
 
+  const list = await getShoppingList({ start: presets[0].start, end: presets[0].end });
   return <ShoppingList list={list} presets={presets} />;
 }

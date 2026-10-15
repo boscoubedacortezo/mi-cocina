@@ -28,3 +28,12 @@ export const rangeSchema = z
 
 /** Days a new list covers when nobody chose a range. */
 export const DEFAULT_RANGE_DAYS = 14;
+
+/** A computed line, as the browser shows it; sent back when the user marks it. */
+export const lineSchema = z.object({
+  key: z.string().min(1).max(200),
+  name: z.string().trim().min(1).max(120),
+  quantity: z.number().min(0).max(1_000_000).nullable(),
+  unit: z.enum(UNITS).nullable(),
+  shop_section: z.enum(SHOP_SECTIONS),
+});
