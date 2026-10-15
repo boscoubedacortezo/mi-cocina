@@ -6,9 +6,9 @@ export type Meal = (typeof MEALS)[number];
 
 export const DEFAULT_SERVINGS = 4;
 
-const isoDate = z.string().refine((value) => parseIso(value) !== null, "Fecha no válida.");
+export const isoDateSchema = z.string().refine((value) => parseIso(value) !== null, "Fecha no válida.");
 
-export const weekStartSchema = isoDate.refine(
+export const weekStartSchema = isoDateSchema.refine(
   (value) => parseIso(value)!.getUTCDay() === 1,
   "La semana debe empezar en lunes.",
 );
@@ -20,7 +20,7 @@ export const servingsSchema = z
   .max(100, "Máximo 100 raciones.");
 
 export const slotSchema = z
-  .object({ weekStart: weekStartSchema, date: isoDate, meal: z.enum(MEALS) })
+  .object({ weekStart: weekStartSchema, date: isoDateSchema, meal: z.enum(MEALS) })
   .refine(({ weekStart, date }) => weekDates(weekStart).includes(date), {
     message: "Ese día no pertenece a la semana.",
   });

@@ -55,3 +55,24 @@ export function resolveWeek(param: string | string[] | undefined, today: string)
   const value = Array.isArray(param) ? param[0] : param;
   return value && parseIso(value) ? mondayOf(value) : mondayOf(today);
 }
+
+/** Last day of the month containing `iso`. */
+export function lastDayOfMonth(iso: string) {
+  const date = parseIso(iso)!;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+}
+
+/** "19 oct – 1 nov" (or just "19 oct" for a single day). */
+export function formatDateRange(start: string, end: string) {
+  const short = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" });
+  const from = short.format(parseIso(start)!);
+  return start === end ? from : `${from} – ${short.format(parseIso(end)!)}`;
+}
+
+/** Days from `start` to `end`, both included. */
+export function daysInRange(start: string, end: string) {
+  const from = parseIso(start);
+  const to = parseIso(end);
+  if (!from || !to) return Number.NaN;
+  return Math.round((to.getTime() - from.getTime()) / DAY_MS) + 1;
+}
