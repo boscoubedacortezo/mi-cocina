@@ -16,3 +16,12 @@ export function normalizeRecipeUrl(raw: string) {
   const url = new URL(raw);
   return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
 }
+
+/** Cookidoo serves its photos from tmecosys.com (and sometimes from cookidoo itself). */
+export function isCookidooImageHost(hostname: string) {
+  return (
+    hostname === "tmecosys.com" ||
+    hostname.endsWith(".tmecosys.com") ||
+    COOKIDOO_HOST.test(hostname)
+  );
+}

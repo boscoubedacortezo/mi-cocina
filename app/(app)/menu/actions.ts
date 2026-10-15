@@ -11,9 +11,10 @@ import { requireUser } from "@/lib/auth-server";
 import { ensureMenu } from "@/lib/menu/ensure";
 import { weekDates } from "@/lib/menu/dates";
 import { listRecipesForPlanning } from "@/lib/menu/queries";
-import { isCookidooUrl, normalizeRecipeUrl } from "@/lib/recipes/cookidoo-url";
+import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
+import { isCookidooImageHost, isCookidooUrl, normalizeRecipeUrl } from "@/lib/recipes/cookidoo-url";
 import { recipeInputSchema } from "@/lib/recipes/schema";
-import { autoFillMeta, insertRecipe } from "@/lib/recipes/save";
+import { autoFillMeta, insertRecipe, saveImageFromUrl } from "@/lib/recipes/save";
 import {
   DEFAULT_SERVINGS,
   MEALS,
@@ -81,24 +82,45 @@ const cookidooSchema = z.object({
  * what the menu and the shopping list need.
  */
 export async function addCookidooRecipe(input: unknown): Promise<MenuResult> {
-  const { supabase } = await requireUser();
+  const { supabase, userId } = await requireUser();
   const parsed = cookidooSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0].message);
   const { slot, url, servings } = parsed.data;
 
-  const existingId = async (key: string) => {
-    const { data } = await supabase.from("recipes").select("id, title").eq("source_url", key).limit(1);
-    return data?.[0] as { id: string; title: string } | undefined;
+  const existing = async (key: string) => {
+    const { data } = await supabase
+      .from("recipes")
+      .select("id, title, image_path")
+      .eq("source_url", key)
+      .limit(1);
+    return data?.[0] as { id: string; title: string; image_path: string | null } | undefined;
+  };
+
+  /** Recipes imported before photos were saved get theirs when the link is added again. */
+  const addMissingPhoto = async (recipeId: string, imageUrl: string | null) => {
+    if (!imageUrl) return;
+    const path = await saveImageFromUrl(supabase, userId, imageUrl, isCookidooImageHost);
+    if (path) await supabase.from("recipes").update({ image_path: path }).eq("id", recipeId);
+  };
+
+  const reuseExisting = async (recipe: { id: string; title: string; image_path: string | null }) => {
+    if (!recipe.image_path) {
+      try {
+        await addMissingPhoto(recipe.id, (await loadWebSource(url)).imageUrl);
+      } catch {
+        // The photo is a nicety: the recipe is usable without it.
+      }
+    }
+    if (!(await assignSlot(supabase, slot, recipe.id, servings))) return fail(GENERIC_ERROR);
+    revalidatePath("/menu");
+    revalidatePath("/recetas");
+    return done(`«${recipe.title}» ya estaba en tu recetario.`);
   };
 
   try {
     // Already in the library: reuse it instead of importing (and paying for the AI) again.
-    const known = await existingId(normalizeRecipeUrl(url));
-    if (known) {
-      if (!(await assignSlot(supabase, slot, known.id, servings))) return fail(GENERIC_ERROR);
-      revalidatePath("/menu");
-      return done(`«${known.title}» ya estaba en tu recetario.`);
-    }
+    const known = await existing(normalizeRecipeUrl(url));
+    if (known) return await reuseExisting(known);
 
     const source = await loadWebSource(url);
     // Without the recipe markup the page is just text around a login: nothing reliable to import.
@@ -106,12 +128,8 @@ export async function addCookidooRecipe(input: unknown): Promise<MenuResult> {
       return fail("No se pudo leer esa receta. ¿Es el enlace de una receta de Cookidoo?");
     }
     const finalKey = normalizeRecipeUrl(source.finalUrl);
-    const duplicate = finalKey !== normalizeRecipeUrl(url) ? await existingId(finalKey) : undefined;
-    if (duplicate) {
-      if (!(await assignSlot(supabase, slot, duplicate.id, servings))) return fail(GENERIC_ERROR);
-      revalidatePath("/menu");
-      return done(`«${duplicate.title}» ya estaba en tu recetario.`);
-    }
+    const duplicate = finalKey !== normalizeRecipeUrl(url) ? await existing(finalKey) : undefined;
+    if (duplicate) return await reuseExisting(duplicate);
 
     const ai = await extractRecipe({ kind: "text", text: source.text });
     const draft = toRecipeDraft(ai, finalKey);
@@ -124,8 +142,15 @@ export async function addCookidooRecipe(input: unknown): Promise<MenuResult> {
       return fail("No se pudo leer esa receta. ¿Es el enlace de una receta de Cookidoo?");
     }
 
-    const id = await insertRecipe(supabase, recipe.data);
-    if (!id) return fail(GENERIC_ERROR);
+    // The photo is best effort; a recipe without it is still worth saving.
+    const imagePath = source.imageUrl
+      ? await saveImageFromUrl(supabase, userId, source.imageUrl, isCookidooImageHost)
+      : null;
+    const id = await insertRecipe(supabase, { ...recipe.data, image_path: imagePath });
+    if (!id) {
+      if (imagePath) await supabase.storage.from(RECIPE_IMAGES_BUCKET).remove([imagePath]);
+      return fail(GENERIC_ERROR);
+    }
     const { ingredients, steps, ...meta } = recipe.data;
     await autoFillMeta(supabase, id, meta, ingredients, steps, "missing");
 

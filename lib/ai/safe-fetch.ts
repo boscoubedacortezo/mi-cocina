@@ -154,3 +154,53 @@ export async function fetchPublicHtml(rawUrl: string) {
   }
   throw new ImportError("La página tiene demasiadas redirecciones.");
 }
+
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
+
+/**
+ * Downloads an image from a public URL with the same protections as pages
+ * (every redirect hop is checked against private networks), and only from
+ * hosts the caller explicitly allows.
+ */
+export async function fetchPublicImage(rawUrl: string, allowHost: (hostname: string) => boolean) {
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new ImportError("La imagen no es válida.");
+  }
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    if (url.protocol !== "https:" || !allowHost(url.hostname)) {
+      throw new ImportError("La imagen no es de un servidor permitido.");
+    }
+    await assertPublicUrl(url);
+
+    let response: Response;
+    try {
+      response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) });
+    } catch {
+      throw new ImportError("No se pudo descargar la imagen.");
+    }
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get("location");
+      if (!location) throw new ImportError("No se pudo descargar la imagen.");
+      url = new URL(location, url);
+      continue;
+    }
+    if (!response.ok) throw new ImportError("No se pudo descargar la imagen.");
+
+    const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim();
+    if (!/^image\/(jpeg|png|webp)$/.test(contentType)) {
+      throw new ImportError("La imagen no tiene un formato admitido.");
+    }
+    if (Number(response.headers.get("content-length") ?? 0) > MAX_IMAGE_BYTES) {
+      throw new ImportError("La imagen es demasiado grande.");
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length > MAX_IMAGE_BYTES) throw new ImportError("La imagen es demasiado grande.");
+    const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+    return { bytes, contentType, ext };
+  }
+  throw new ImportError("La imagen tiene demasiadas redirecciones.");
+}

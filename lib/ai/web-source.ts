@@ -12,6 +12,8 @@ export type WebSource = {
   /** True when the page text was cut to fit. */
   truncated: boolean;
   finalUrl: string;
+  /** The recipe's photo (absolute URL) when the page declares one. */
+  imageUrl: string | null;
 };
 
 type Json = unknown;
@@ -48,6 +50,19 @@ function flattenInstructions(node: Json): string[] {
   return [];
 }
 
+function firstImage(node: Json): string | null {
+  if (typeof node === "string") return node || null;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = firstImage(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (node && typeof node === "object") return firstImage((node as Record<string, Json>).url);
+  return null;
+}
+
 function extractJsonLdRecipe($: cheerio.CheerioAPI) {
   for (const element of $('script[type="application/ld+json"]').toArray()) {
     let data: Json;
@@ -66,7 +81,7 @@ function extractJsonLdRecipe($: cheerio.CheerioAPI) {
     if (ingredients.length === 0 && steps.length === 0) continue;
 
     // Only the fields a recipe needs; the rest of the JSON-LD is noise.
-    return {
+    const fields = {
       name: recipe.name,
       description: recipe.description,
       recipeYield: recipe.recipeYield,
@@ -79,6 +94,7 @@ function extractJsonLdRecipe($: cheerio.CheerioAPI) {
       recipeIngredient: ingredients,
       recipeInstructions: steps,
     };
+    return { fields, image: firstImage(recipe.image) };
   }
   return null;
 }
@@ -102,13 +118,31 @@ function cleanPageText($: cheerio.CheerioAPI) {
 }
 
 /** Downloads a page and returns the best text to extract a recipe from. */
+/** The photo the page declares: the recipe markup's, else the social-preview image. */
+function resolveImage($: cheerio.CheerioAPI, fromRecipe: string | null, base: string) {
+  const candidate = fromRecipe ?? $('meta[property="og:image"]').attr("content") ?? null;
+  if (!candidate) return null;
+  try {
+    return new URL(candidate, base).toString();
+  } catch {
+    return null;
+  }
+}
+
 export async function loadWebSource(url: string): Promise<WebSource> {
   const { html, finalUrl } = await fetchPublicHtml(url);
   const $ = cheerio.load(html);
 
-  const recipe = extractJsonLdRecipe($);
-  if (recipe) {
-    return { kind: "json-ld", text: JSON.stringify(recipe, null, 2), truncated: false, finalUrl };
+  const found = extractJsonLdRecipe($);
+  const imageUrl = resolveImage($, found?.image ?? null, finalUrl);
+  if (found) {
+    return {
+      kind: "json-ld",
+      text: JSON.stringify(found.fields, null, 2),
+      truncated: false,
+      finalUrl,
+      imageUrl,
+    };
   }
 
   const text = cleanPageText($);
@@ -118,5 +152,5 @@ export async function loadWebSource(url: string): Promise<WebSource> {
     );
   }
   const truncated = text.length > MAX_TEXT_CHARS;
-  return { kind: "html", text: text.slice(0, MAX_TEXT_CHARS), truncated, finalUrl };
+  return { kind: "html", text: text.slice(0, MAX_TEXT_CHARS), truncated, finalUrl, imageUrl };
 }

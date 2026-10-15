@@ -1,10 +1,11 @@
 import "server-only";
 import { estimateRecipe } from "@/lib/ai/estimate-recipe";
+import { fetchPublicImage } from "@/lib/ai/safe-fetch";
 import type { requireUser } from "@/lib/auth-server";
 import { planAutoMeta, type AutoMetaMode } from "@/lib/recipes/auto-meta";
 import { formatIngredient } from "@/lib/recipes/format";
 import { listAllTags } from "@/lib/recipes/queries";
-import type { Course, MainIngredient } from "@/lib/recipes/constants";
+import { RECIPE_IMAGES_BUCKET, type Course, type MainIngredient } from "@/lib/recipes/constants";
 import type { RecipeInput } from "@/lib/recipes/schema";
 
 // Shared by the recipe form actions and by the "add from Cookidoo" shortcut,
@@ -153,4 +154,27 @@ export async function deleteByIds(
   ids: string[],
 ) {
   if (ids.length) await supabase.from(table).delete().in("id", ids);
+}
+
+/**
+ * Copies a remote photo into the user's private storage and returns its path.
+ * Best effort: a recipe is worth saving without its photo, so failures give null.
+ */
+export async function saveImageFromUrl(
+  supabase: Supabase,
+  userId: string,
+  imageUrl: string,
+  allowHost: (hostname: string) => boolean,
+): Promise<string | null> {
+  try {
+    const image = await fetchPublicImage(imageUrl, allowHost);
+    const path = `${userId}/${crypto.randomUUID()}.${image.ext}`;
+    const { error } = await supabase.storage
+      .from(RECIPE_IMAGES_BUCKET)
+      .upload(path, image.bytes, { contentType: image.contentType });
+    return error ? null : path;
+  } catch (error) {
+    console.error("[recipes] photo skipped:", error instanceof Error ? error.message : error);
+    return null;
+  }
 }
