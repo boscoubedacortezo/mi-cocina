@@ -121,9 +121,12 @@ export function ScalableRecipe({
               </div>
             </div>
 
-            {changed && (
-              <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-                <span>Cantidades ajustadas (la receta es para {baseServings}).</span>
+            <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+              <span>
+                {changed ? "Cantidades ajustadas. " : ""}La receta original es para {baseServings}{" "}
+                {baseServings === 1 ? "ración" : "raciones"}.
+              </span>
+              {changed && (
                 <button
                   type="button"
                   className="underline underline-offset-4"
@@ -131,8 +134,8 @@ export function ScalableRecipe({
                 >
                   Restablecer
                 </button>
-              </p>
-            )}
+              )}
+            </p>
 
             <ul className="flex flex-col divide-y rounded-xl border">
               {ingredients.map((item) => (

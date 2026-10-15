@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil, Users } from "lucide-react";
+import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
@@ -69,9 +69,6 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
           <p className="text-muted-foreground">{recipe.description}</p>
         )}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <Users className="size-4" aria-hidden /> {recipe.servings} raciones
-          </span>
           {prep && (
             <span className="flex items-center gap-1">
               <Clock className="size-4" aria-hidden /> Prep. {prep}
