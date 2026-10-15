@@ -189,6 +189,20 @@ export function WeekPlanner({
                         >
                           Ver
                         </Link>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={pending}
+                          onClick={() =>
+                            run(() => clearSlot(slotInput(slot)), {
+                              success: `${MEAL_LABELS[meal]} quitada del menú`,
+                            })
+                          }
+                          aria-label={`Quitar ${item.recipe.title} del menú`}
+                        >
+                          <Trash2 />
+                        </Button>
                       </>
                     ) : (
                       <Button
