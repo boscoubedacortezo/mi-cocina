@@ -2,7 +2,17 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Loader2, Minus, Moon, Plus, Sparkles, Sun, Trash2, Users } from "lucide-react";
+import {
+  ChevronDown,
+  Loader2,
+  Minus,
+  Moon,
+  Plus,
+  Sparkles,
+  Sun,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,9 +63,14 @@ export function WeekPlanner({
 }) {
   const [picker, setPicker] = useState<(Slot & { label: string }) | null>(null);
   const [pending, startTransition] = useTransition();
+  // Only today starts open; the user's own taps win over that default.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
 
   const bySlot = useMemo(
-    () => new Map(items.filter((i) => i.recipe).map((i) => [slotKey(i.date, i.meal), i])),
+    () =>
+      new Map(
+        items.filter((i) => i.recipe).map((i) => [slotKey(i.date, i.meal), i]),
+      ),
     [items],
   );
   const usedIds = useMemo(
@@ -67,7 +82,10 @@ export function WeekPlanner({
   const slotInput = (slot: Slot) => ({ weekStart, ...slot });
 
   /** Runs a server action, shows its outcome and optionally closes the picker. */
-  function run(action: () => Promise<MenuResult>, options?: { success?: string; closePicker?: boolean }) {
+  function run(
+    action: () => Promise<MenuResult>,
+    options?: { success?: string; closePicker?: boolean },
+  ) {
     startTransition(async () => {
       const result = await action();
       if (!result.ok) {
@@ -84,7 +102,9 @@ export function WeekPlanner({
     });
   }
 
-  const current = picker ? bySlot.get(slotKey(picker.date, picker.meal)) : undefined;
+  const current = picker
+    ? bySlot.get(slotKey(picker.date, picker.meal))
+    : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -103,10 +123,18 @@ export function WeekPlanner({
           type="button"
           size="lg"
           disabled={pending || emptyCount === 0 || recipes.length === 0}
-          onClick={() => run(() => generateWeek(weekStart), { success: "Menú generado" })}
+          onClick={() =>
+            run(() => generateWeek(weekStart), { success: "Menú generado" })
+          }
         >
-          {pending && !picker ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {pending && !picker ? "Pensando el menú… (hasta un minuto)" : "Generar con IA los huecos vacíos"}
+          {pending && !picker ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <Sparkles />
+          )}
+          {pending && !picker
+            ? "Pensando el menú… (hasta un minuto)"
+            : "Generar con IA los huecos vacíos"}
         </Button>
         <Button
           type="button"
@@ -133,103 +161,186 @@ export function WeekPlanner({
       )}
 
       <ul className="flex flex-col gap-3">
-        {days.map(({ date, label }) => (
-          <li key={date} className={cn("rounded-xl border p-3", date === today && "border-primary")}>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="font-heading font-medium capitalize">{label}</h2>
-              {date === today && <Badge>Hoy</Badge>}
-            </div>
-            <div className="flex flex-col divide-y">
-              {MEALS.map((meal) => {
-                const item = bySlot.get(slotKey(date, meal));
-                const slot = { date, meal };
-                return (
-                  <div key={meal} className="flex items-center gap-3 py-2">
-                    <span className="flex w-16 shrink-0 flex-col items-start gap-0.5 text-xs text-muted-foreground uppercase">
-                      {(() => {
+        {days.map(({ date, label }) => {
+          const open = toggled[date] ?? date === today;
+          return (
+            <li
+              key={date}
+              className={cn(
+                "rounded-xl border p-3",
+                date === today && "border-primary",
+              )}
+            >
+              <button
+                type="button"
+                aria-expanded={open}
+                onClick={() =>
+                  setToggled((prev) => ({ ...prev, [date]: !open }))
+                }
+                className="flex w-full items-center gap-2 text-left"
+              >
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="flex items-center gap-2">
+                    <h2 className="font-heading font-medium capitalize">
+                      {label}
+                    </h2>
+                    {date === today && <Badge>Hoy</Badge>}
+                  </span>
+                  {!open && (
+                    <span className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                      {MEALS.map((meal) => {
                         const { Icon, color } = MEAL_ICONS[meal];
-                        return <Icon className={cn("size-4", color)} aria-hidden />;
-                      })()}
-                      {MEAL_LABELS[meal]}
-                    </span>
-                    {item?.recipe ? (
-                      <>
-                        <div className="flex min-w-0 flex-1 flex-col gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setPicker({ ...slot, label: `${MEAL_LABELS[meal]} · ${label}` })}
-                            className="truncate text-left font-medium"
-                            aria-label={`Cambiar ${item.recipe.title}`}
+                        const title = bySlot.get(slotKey(date, meal))?.recipe
+                          ?.title;
+                        return (
+                          <span
+                            key={meal}
+                            className="flex items-center gap-1.5"
                           >
-                            {item.recipe.title}
-                          </button>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Users className="size-3.5" aria-hidden />
+                            <Icon
+                              className={cn("size-3.5 shrink-0", color)}
+                              aria-hidden
+                            />
+                            <span
+                              className={cn("truncate", !title && "italic")}
+                            >
+                              {title ?? "Sin planificar"}
+                            </span>
+                          </span>
+                        );
+                      })}
+                    </span>
+                  )}
+                </div>
+                <ChevronDown
+                  className={cn(
+                    "size-5 shrink-0 text-muted-foreground transition-transform",
+                    open && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </button>
+              {open && (
+                <div className="mt-2 flex flex-col divide-y">
+                  {MEALS.map((meal) => {
+                    const item = bySlot.get(slotKey(date, meal));
+                    const slot = { date, meal };
+                    return (
+                      <div key={meal} className="flex items-center gap-3 py-2">
+                        <span className="flex w-16 shrink-0 flex-col items-start gap-0.5 text-xs text-muted-foreground uppercase">
+                          {(() => {
+                            const { Icon, color } = MEAL_ICONS[meal];
+                            return (
+                              <Icon
+                                className={cn("size-4", color)}
+                                aria-hidden
+                              />
+                            );
+                          })()}
+                          {MEAL_LABELS[meal]}
+                        </span>
+                        {item?.recipe ? (
+                          <>
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPicker({
+                                    ...slot,
+                                    label: `${MEAL_LABELS[meal]} · ${label}`,
+                                  })
+                                }
+                                className="truncate text-left font-medium"
+                                aria-label={`Cambiar ${item.recipe.title}`}
+                              >
+                                {item.recipe.title}
+                              </button>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Users className="size-3.5" aria-hidden />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  disabled={pending || item.servings <= 1}
+                                  onClick={() =>
+                                    run(() =>
+                                      setSlotServings({
+                                        slot: slotInput(slot),
+                                        servings: item.servings - 1,
+                                      }),
+                                    )
+                                  }
+                                  aria-label="Una ración menos"
+                                >
+                                  <Minus />
+                                </Button>
+                                <span aria-label={`${item.servings} raciones`}>
+                                  {item.servings}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-xs"
+                                  disabled={pending || item.servings >= 100}
+                                  onClick={() =>
+                                    run(() =>
+                                      setSlotServings({
+                                        slot: slotInput(slot),
+                                        servings: item.servings + 1,
+                                      }),
+                                    )
+                                  }
+                                  aria-label="Una ración más"
+                                >
+                                  <Plus />
+                                </Button>
+                              </div>
+                            </div>
+                            <Link
+                              href={`/recetas/${item.recipe.id}`}
+                              className="text-xs text-muted-foreground underline underline-offset-4"
+                            >
+                              Ver
+                            </Link>
                             <Button
                               type="button"
                               variant="ghost"
-                              size="icon-xs"
-                              disabled={pending || item.servings <= 1}
+                              size="icon"
+                              disabled={pending}
                               onClick={() =>
-                                run(() => setSlotServings({ slot: slotInput(slot), servings: item.servings - 1 }))
+                                run(() => clearSlot(slotInput(slot)), {
+                                  success: `${MEAL_LABELS[meal]} quitada del menú`,
+                                })
                               }
-                              aria-label="Una ración menos"
+                              aria-label={`Quitar ${item.recipe.title} del menú`}
                             >
-                              <Minus />
+                              <Trash2 />
                             </Button>
-                            <span aria-label={`${item.servings} raciones`}>{item.servings}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-xs"
-                              disabled={pending || item.servings >= 100}
-                              onClick={() =>
-                                run(() => setSlotServings({ slot: slotInput(slot), servings: item.servings + 1 }))
-                              }
-                              aria-label="Una ración más"
-                            >
-                              <Plus />
-                            </Button>
-                          </div>
-                        </div>
-                        <Link
-                          href={`/recetas/${item.recipe.id}`}
-                          className="text-xs text-muted-foreground underline underline-offset-4"
-                        >
-                          Ver
-                        </Link>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          disabled={pending}
-                          onClick={() =>
-                            run(() => clearSlot(slotInput(slot)), {
-                              success: `${MEAL_LABELS[meal]} quitada del menú`,
-                            })
-                          }
-                          aria-label={`Quitar ${item.recipe.title} del menú`}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex-1 justify-start text-muted-foreground"
-                        onClick={() => setPicker({ ...slot, label: `${MEAL_LABELS[meal]} · ${label}` })}
-                        disabled={pending}
-                      >
-                        <Plus /> Añadir
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </li>
-        ))}
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="flex-1 justify-start text-muted-foreground"
+                            onClick={() =>
+                              setPicker({
+                                ...slot,
+                                label: `${MEAL_LABELS[meal]} · ${label}`,
+                              })
+                            }
+                            disabled={pending}
+                          >
+                            <Plus /> Añadir
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {picker && (
@@ -252,7 +363,10 @@ export function WeekPlanner({
             )
           }
           onRegenerate={() =>
-            run(() => regenerateSlot(slotInput(picker)), { success: "Receta propuesta", closePicker: true })
+            run(() => regenerateSlot(slotInput(picker)), {
+              success: "Receta propuesta",
+              closePicker: true,
+            })
           }
           onAddCookidoo={(url) =>
             run(
@@ -265,7 +379,9 @@ export function WeekPlanner({
               { success: "Receta de Cookidoo añadida", closePicker: true },
             )
           }
-          onClear={() => run(() => clearSlot(slotInput(picker)), { closePicker: true })}
+          onClear={() =>
+            run(() => clearSlot(slotInput(picker)), { closePicker: true })
+          }
         />
       )}
     </div>

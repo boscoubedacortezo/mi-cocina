@@ -2,7 +2,7 @@
 
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ClipboardCopy, Plus, Trash2, Undo2 } from "lucide-react";
+import { Check, ClipboardCopy, Plus, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { copyText } from "@/lib/clipboard";
 import { daysInRange, formatDateRange, mondayOf } from "@/lib/menu/dates";
-import { SHOP_SECTIONS, UNITS, type ShopSection, type Unit } from "@/lib/recipes/constants";
+import {
+  SHOP_SECTIONS,
+  UNITS,
+  type ShopSection,
+  type Unit,
+} from "@/lib/recipes/constants";
 import { SECTION_DOT } from "@/lib/shopping/colors";
-import { buildShoppingText, capitalize, formatAmount } from "@/lib/shopping/format";
+import {
+  buildShoppingText,
+  capitalize,
+  formatAmount,
+} from "@/lib/shopping/format";
 import type { ShoppingEntry, ShoppingListData } from "@/lib/shopping/queries";
 import { cn, selectClass } from "@/lib/utils";
 import {
@@ -29,12 +38,22 @@ type OptimisticAction =
   | { type: "toggle"; id: string; checked: boolean }
   | { type: "remove"; id: string };
 
-export function ShoppingList({ list, presets }: { list: ShoppingListData; presets: Preset[] }) {
+export function ShoppingList({
+  list,
+  presets,
+}: {
+  list: ShoppingListData;
+  presets: Preset[];
+}) {
   const [pending, startTransition] = useTransition();
-  const [visible, applyOptimistic] = useOptimistic(list.items, (state, action: OptimisticAction) =>
-    action.type === "toggle"
-      ? state.map((item) => (item.id === action.id ? { ...item, checked: action.checked } : item))
-      : state.filter((item) => item.id !== action.id),
+  const [visible, applyOptimistic] = useOptimistic(
+    list.items,
+    (state, action: OptimisticAction) =>
+      action.type === "toggle"
+        ? state.map((item) =>
+            item.id === action.id ? { ...item, checked: action.checked } : item,
+          )
+        : state.filter((item) => item.id !== action.id),
   );
 
   // The period; changing it saves it, and the list follows the menu for those days.
@@ -53,6 +72,7 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
     });
   }
 
+  const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState<Unit | "">("");
@@ -66,7 +86,8 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
           .filter((item) => item.shop_section === sectionName)
           .sort(
             (a, b) =>
-              Number(a.checked) - Number(b.checked) || a.name.localeCompare(b.name, "es"),
+              Number(a.checked) - Number(b.checked) ||
+              a.name.localeCompare(b.name, "es"),
           ),
       })).filter((group) => group.items.length > 0),
     [visible],
@@ -139,13 +160,20 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
       toast.info("No queda nada por comprar.");
       return;
     }
-    const label = list.range ? formatDateRange(list.range.start, list.range.end) : "";
-    copyText(buildShoppingText(label, toBuy), `Lista (${toBuy.length} artículos)`);
+    const label = list.range
+      ? formatDateRange(list.range.start, list.range.end)
+      : "";
+    copyText(
+      buildShoppingText(label, toBuy),
+      `Lista (${toBuy.length} artículos)`,
+    );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="font-heading text-2xl font-semibold">Lista de la compra</h1>
+      <h1 className="font-heading text-2xl font-semibold">
+        Lista de la compra
+      </h1>
 
       <section className="flex flex-col gap-3 rounded-xl border p-3">
         <h2 className="text-sm font-medium">Periodo de la compra</h2>
@@ -159,7 +187,10 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
                 aria-pressed={active}
                 onClick={() => applyRange(preset.start, preset.end)}
               >
-                <Badge variant={active ? "default" : "outline"} className="px-3 py-1 text-sm">
+                <Badge
+                  variant={active ? "default" : "outline"}
+                  className="px-3 py-1 text-sm"
+                >
                   {preset.label}
                 </Badge>
               </button>
@@ -206,7 +237,10 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
           ) : list.plannedMeals === 0 ? (
             <>
               No hay recetas en el menú de esos días.{" "}
-              <Link href={`/menu?semana=${mondayOf(start)}`} className="underline underline-offset-4">
+              <Link
+                href={`/menu?semana=${mondayOf(start)}`}
+                className="underline underline-offset-4"
+              >
                 Planificar el menú
               </Link>
             </>
@@ -216,55 +250,83 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
         </p>
       </section>
 
-      <form onSubmit={add} className="flex flex-col gap-2 rounded-xl border p-3" noValidate>
-        <h2 className="text-sm font-medium">Añadir artículo</h2>
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Papel de cocina, pilas…"
-          aria-label="Nombre del artículo"
-          maxLength={120}
-        />
-        <div className="grid grid-cols-2 gap-2">
+      {!adding && (
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={() => setAdding(true)}
+        >
+          <Plus /> Añadir artículo
+        </Button>
+      )}
+      {adding && (
+        <form
+          onSubmit={add}
+          className="flex flex-col gap-2 rounded-xl border p-3"
+          noValidate
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium">Añadir artículo</h2>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setAdding(false)}
+              aria-label="Cerrar"
+            >
+              <X />
+            </Button>
+          </div>
           <Input
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            inputMode="decimal"
-            placeholder="Cantidad (opcional)"
-            aria-label="Cantidad"
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Papel de cocina, pilas…"
+            aria-label="Nombre del artículo"
+            maxLength={120}
           />
-          <select
-            value={unit}
-            onChange={(e) => setUnit(e.target.value as Unit | "")}
-            className={selectClass}
-            aria-label="Unidad"
-          >
-            <option value="">Sin unidad</option>
-            {UNITS.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid grid-cols-[1fr_auto] gap-2">
-          <select
-            value={section}
-            onChange={(e) => setSection(e.target.value as ShopSection)}
-            className={selectClass}
-            aria-label="Sección del súper"
-          >
-            {SHOP_SECTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <Button type="submit" disabled={pending || !name.trim()}>
-            <Plus /> Añadir
-          </Button>
-        </div>
-      </form>
+          <div className="grid grid-cols-2 gap-2">
+            <Input
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              inputMode="decimal"
+              placeholder="Cantidad (opcional)"
+              aria-label="Cantidad"
+            />
+            <select
+              value={unit}
+              onChange={(e) => setUnit(e.target.value as Unit | "")}
+              className={selectClass}
+              aria-label="Unidad"
+            >
+              <option value="">Sin unidad</option>
+              {UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <select
+              value={section}
+              onChange={(e) => setSection(e.target.value as ShopSection)}
+              className={selectClass}
+              aria-label="Sección del súper"
+            >
+              {SHOP_SECTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <Button type="submit" disabled={pending || !name.trim()}>
+              <Plus /> Añadir
+            </Button>
+          </div>
+        </form>
+      )}
 
       {visible.length === 0 ? (
         <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
@@ -273,19 +335,29 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            {bought} de {visible.length} comprados. Quita con la papelera lo que ya tengas en casa.
+            {bought} de {visible.length} comprados. Quita con la papelera lo que
+            ya tengas en casa.
           </p>
           {groups.map((group) => (
             <section key={group.section} className="flex flex-col gap-1">
               <h2 className="flex items-center gap-2 font-heading text-lg font-semibold">
-                <span className={cn("size-2.5 rounded-full", SECTION_DOT[group.section])} aria-hidden />
+                <span
+                  className={cn(
+                    "size-2.5 rounded-full",
+                    SECTION_DOT[group.section],
+                  )}
+                  aria-hidden
+                />
                 {group.section}
               </h2>
               <ul className="divide-y rounded-xl border">
                 {group.items.map((item) => {
                   const amount = formatAmount(item.quantity, item.unit);
                   return (
-                    <li key={item.id} className="flex items-center gap-2 px-3 py-2">
+                    <li
+                      key={item.id}
+                      className="flex items-center gap-2 px-3 py-2"
+                    >
                       <button
                         type="button"
                         role="checkbox"
@@ -294,10 +366,13 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
                         onClick={() => toggle(item)}
                         className={cn(
                           "flex size-6 shrink-0 items-center justify-center rounded-full border",
-                          item.checked && "border-primary bg-primary text-primary-foreground",
+                          item.checked &&
+                            "border-primary bg-primary text-primary-foreground",
                         )}
                       >
-                        {item.checked && <Check className="size-4" aria-hidden />}
+                        {item.checked && (
+                          <Check className="size-4" aria-hidden />
+                        )}
                       </button>
                       <div
                         className={cn(
@@ -306,8 +381,12 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
                         )}
                       >
                         <span className="flex min-w-0 items-center gap-2">
-                          <span className="truncate">{capitalize(item.name)}</span>
-                          {item.is_manual && <Badge variant="outline">Manual</Badge>}
+                          <span className="truncate">
+                            {capitalize(item.name)}
+                          </span>
+                          {item.is_manual && (
+                            <Badge variant="outline">Manual</Badge>
+                          )}
                         </span>
                         <span className="flex shrink-0 flex-col items-end">
                           {amount && <span className="text-sm">{amount}</span>}
@@ -323,7 +402,11 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
                         variant="ghost"
                         size="icon"
                         onClick={() => mark(item, "removed")}
-                        aria-label={item.is_manual ? `Borrar ${item.name}` : `Quitar ${item.name} de la lista (ya lo tengo)`}
+                        aria-label={
+                          item.is_manual
+                            ? `Borrar ${item.name}`
+                            : `Quitar ${item.name} de la lista (ya lo tengo)`
+                        }
                       >
                         <Trash2 />
                       </Button>
@@ -345,8 +428,13 @@ export function ShoppingList({ list, presets }: { list: ShoppingListData; preset
             {list.removed.map((item) => {
               const amount = formatAmount(item.quantity, item.unit);
               return (
-                <li key={item.id} className="flex items-center gap-2 py-2 text-muted-foreground">
-                  <span className="min-w-0 flex-1 truncate">{capitalize(item.name)}</span>
+                <li
+                  key={item.id}
+                  className="flex items-center gap-2 py-2 text-muted-foreground"
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {capitalize(item.name)}
+                  </span>
                   {amount && <span className="shrink-0 text-sm">{amount}</span>}
                   <Button
                     type="button"

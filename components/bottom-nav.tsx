@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, CalendarDays, ShoppingCart } from "lucide-react";
+import { BookOpen, CalendarDays, Settings, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/recetas", label: "Recetas", icon: BookOpen },
   { href: "/menu", label: "Menú", icon: CalendarDays },
   { href: "/compra", label: "Compra", icon: ShoppingCart },
+  { href: "/ajustes", label: "Ajustes", icon: Settings },
 ] as const;
 
 export function BottomNav() {
@@ -16,7 +17,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <ul className="mx-auto grid max-w-2xl grid-cols-3">
+      <ul className="mx-auto grid max-w-2xl grid-cols-4">
         {ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
