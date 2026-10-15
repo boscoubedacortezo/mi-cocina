@@ -8,7 +8,6 @@ export type RecipeSummary = {
   id: string;
   title: string;
   tags: string[];
-  servings: number;
   prep_minutes: number | null;
   cook_minutes: number | null;
   image_path: string | null;
@@ -64,7 +63,7 @@ export async function listRecipes(filters: { q?: string; tag?: string }) {
   const supabase = await createClient();
   let query = supabase
     .from("recipes")
-    .select("id, title, tags, servings, prep_minutes, cook_minutes, image_path")
+    .select("id, title, tags, prep_minutes, cook_minutes, image_path")
     .order("created_at", { ascending: false });
 
   const q = filters.q ? sanitizeSearch(filters.q) : "";

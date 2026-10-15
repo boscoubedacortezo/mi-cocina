@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Clock, Plus, Search, Users } from "lucide-react";
+import { Clock, Plus, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
 import { Input } from "@/components/ui/input";
 import { formatMinutes } from "@/lib/recipes/format";
 import { listAllTags, listRecipes } from "@/lib/recipes/queries";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Recetas" };
 
@@ -125,22 +124,12 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
                     <h2 className="font-heading leading-snug font-medium">
                       {recipe.title}
                     </h2>
-                    <p
-                      className={cn(
-                        "flex items-center gap-3 text-xs text-muted-foreground",
-                      )}
-                    >
-                      <span className="flex items-center gap-1">
-                        <Users className="size-3.5" aria-hidden />
-                        {recipe.servings}
-                      </span>
-                      {total && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="size-3.5" aria-hidden />
-                          {total}
-                        </span>
-                      )}
-                    </p>
+                    {total && (
+                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="size-3.5" aria-hidden />
+                        {total}
+                      </p>
+                    )}
                     {recipe.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {recipe.tags.map((t) => (
