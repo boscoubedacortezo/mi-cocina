@@ -5,10 +5,11 @@ import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil, Users } from "lucide-r
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
-import { formatIngredient, formatMinutes } from "@/lib/recipes/format";
+import { formatMinutes } from "@/lib/recipes/format";
 import { getRecipe } from "@/lib/recipes/queries";
 import { hasThermomixVersion } from "@/lib/thermomix/queries";
 import { DeleteRecipeButton } from "../_components/delete-recipe-button";
+import { ScalableIngredients } from "./scalable-ingredients";
 
 export async function generateMetadata({
   params,
@@ -92,7 +93,7 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
           href={`/recetas/${recipe.id}/thermomix`}
           className={buttonVariants({ size: "lg" })}
         >
-          <ChefHat /> {hasTm7 ? "Ver versión TM7" : "Convertir a TM7"}
+          <ChefHat /> {hasTm7 ? "Ver versión Thermomix" : "Convertir a TM7"}
         </Link>
         <div className="flex gap-2">
           <Link
@@ -107,20 +108,10 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
 
       <section className="flex flex-col gap-3">
         <h2 className="font-heading text-lg font-semibold">Ingredientes</h2>
-        {recipe.ingredients.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin ingredientes.</p>
-        ) : (
-          <ul className="flex flex-col divide-y rounded-xl border">
-            {recipe.ingredients.map((item) => (
-              <li key={item.id} className="px-3 py-2">
-                {formatIngredient(item)}
-                {item.optional && (
-                  <span className="text-sm text-muted-foreground"> (opcional)</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        <ScalableIngredients
+          baseServings={recipe.servings}
+          ingredients={recipe.ingredients}
+        />
       </section>
 
       <section className="flex flex-col gap-3">

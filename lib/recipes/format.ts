@@ -13,6 +13,7 @@ export function formatIngredient(item: {
   quantity: number | null;
   unit: Unit | null;
 }) {
+  if (item.unit === "al gusto") return `${item.name} al gusto`;
   const amount = [formatQuantity(item.quantity), item.unit]
     .filter(Boolean)
     .join(" ");
