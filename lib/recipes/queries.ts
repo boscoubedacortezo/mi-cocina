@@ -2,8 +2,11 @@ import "server-only";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { isCookidooUrl } from "./cookidoo-url";
+import { parseQuery, searchScore } from "./search";
 import { createClient } from "@/lib/supabase/server";
 import {
+  COURSE_LABELS,
+  MAIN_INGREDIENT_LABELS,
   RECIPE_IMAGES_BUCKET,
   type Course,
   type MainIngredient,
@@ -69,11 +72,22 @@ async function signImageUrls(paths: string[]) {
   return urls;
 }
 
-// PostgREST filter values break on these characters; LIKE wildcards are
-// stripped so the search stays a plain "contains".
-function sanitizeSearch(term: string) {
-  return term.replace(/[,()%_\\*]/g, " ").replace(/\s+/g, " ").trim();
-}
+/** A row of the list query; the last three columns only come when searching. */
+type ListRow = {
+  id: string;
+  title: string;
+  tags: string[];
+  course: Course | null;
+  main_ingredient: MainIngredient | null;
+  prep_minutes: number | null;
+  cook_minutes: number | null;
+  image_path: string | null;
+  source_url: string | null;
+  description?: string | null;
+  notes?: string | null;
+  recipe_ingredients?: { name: string }[];
+  thermomix_versions: { id: string }[];
+};
 
 export async function listRecipes(filters: {
   q?: string;
@@ -86,31 +100,76 @@ export async function listRecipes(filters: {
   cookidoo?: boolean;
 }) {
   const supabase = await createClient();
+  const tokens = parseQuery(filters.q ?? "");
+  // Text is only matched in code (accents, word order and ranking are easier to get
+  // right there), so the extra columns are loaded only when someone is searching.
+  const searching = tokens.length > 0;
+  const columns = [
+    "id",
+    "title",
+    "tags",
+    "course",
+    "main_ingredient",
+    "prep_minutes",
+    "cook_minutes",
+    "image_path",
+    "source_url",
+    ...(searching ? ["description", "notes", "recipe_ingredients(name)"] : []),
+    // "!inner" turns the join into a filter: only recipes with at least one version.
+    `thermomix_versions${filters.thermomix ? "!inner" : ""}(id)`,
+  ].join(", ");
   let query = supabase
     .from("recipes")
-    .select(
-      // "!inner" turns the join into a filter: only recipes with at least one version.
-      `id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, image_path, source_url, thermomix_versions${filters.thermomix ? "!inner" : ""}(id)`,
-    )
+    .select(columns)
     .order("created_at", { ascending: false });
 
-  const q = filters.q ? sanitizeSearch(filters.q) : "";
-  if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%`);
   if (filters.tag) query = query.contains("tags", [filters.tag]);
   if (filters.course) query = query.eq("course", filters.course);
   if (filters.main) query = query.eq("main_ingredient", filters.main);
 
-  const { data, error } = await query;
+  const { data: rows, error } = await query;
   if (error) throw new Error("No se pudieron cargar las recetas.");
+  const data = rows as unknown as ListRow[];
+
+  // Keep the matches, best first (ties keep the newest-first order of the query).
+  const ranked = data
+    .map((row, index) => {
+      if (!searching) return { row, score: 0, index };
+      const score = searchScore(
+        {
+          title: row.title,
+          description: row.description,
+          notes: row.notes,
+          tags: row.tags,
+          labels: [
+            ...(row.course ? [COURSE_LABELS[row.course]] : []),
+            ...(row.main_ingredient ? [MAIN_INGREDIENT_LABELS[row.main_ingredient]] : []),
+          ],
+          ingredients: row.recipe_ingredients?.map((i) => i.name) ?? [],
+        },
+        tokens,
+      );
+      return { row, score, index };
+    })
+    .filter((item): item is { row: (typeof data)[number]; score: number; index: number } => item.score !== null)
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((item) => item.row);
 
   const urls = await signImageUrls(
-    data.flatMap((recipe) => (recipe.image_path ? [recipe.image_path] : [])),
+    ranked.flatMap((recipe) => (recipe.image_path ? [recipe.image_path] : [])),
   );
-  const recipes = data.map<RecipeSummary>(({ thermomix_versions, source_url, ...recipe }) => ({
-    ...recipe,
-    from_cookidoo: isCookidooUrl(source_url),
-    image_url: recipe.image_path ? (urls.get(recipe.image_path) ?? null) : null,
-    has_thermomix: Array.isArray(thermomix_versions) && thermomix_versions.length > 0,
+  const recipes = ranked.map<RecipeSummary>((row) => ({
+    id: row.id,
+    title: row.title,
+    tags: row.tags,
+    course: row.course,
+    main_ingredient: row.main_ingredient,
+    prep_minutes: row.prep_minutes,
+    cook_minutes: row.cook_minutes,
+    image_path: row.image_path,
+    image_url: row.image_path ? (urls.get(row.image_path) ?? null) : null,
+    has_thermomix: Array.isArray(row.thermomix_versions) && row.thermomix_versions.length > 0,
+    from_cookidoo: isCookidooUrl(row.source_url),
   }));
   // Decided here, with the same rule that draws the card's marker, instead of a URL pattern in SQL.
   return filters.cookidoo ? recipes.filter((recipe) => recipe.from_cookidoo) : recipes;

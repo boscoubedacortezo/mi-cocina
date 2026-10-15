@@ -18,6 +18,8 @@ export type RecipeOption = {
   course: Course | null;
   main_ingredient: MainIngredient | null;
   minutes: number | null;
+  /** For searching. */
+  ingredients: string[];
 };
 
 export async function getWeekItems(weekStart: string): Promise<MenuItemView[]> {
@@ -53,7 +55,7 @@ export async function listRecipeOptions(): Promise<RecipeOption[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("recipes")
-    .select("id, title, tags, course, main_ingredient, prep_minutes, cook_minutes")
+    .select("id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, recipe_ingredients(name)")
     .order("title");
   if (error) throw new Error("No se pudieron cargar las recetas.");
   return data.map((recipe) => {
@@ -65,6 +67,7 @@ export async function listRecipeOptions(): Promise<RecipeOption[]> {
       course: recipe.course,
       main_ingredient: recipe.main_ingredient,
       minutes: minutes || null,
+      ingredients: ((recipe.recipe_ingredients ?? []) as { name: string }[]).map((i) => i.name),
     };
   });
 }

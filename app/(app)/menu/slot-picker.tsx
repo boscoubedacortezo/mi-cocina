@@ -7,11 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMinutes } from "@/lib/recipes/format";
 import { COURSE_LABELS, MAIN_INGREDIENT_LABELS } from "@/lib/recipes/constants";
+import { parseQuery, searchScore } from "@/lib/recipes/search";
 import type { RecipeOption } from "@/lib/menu/queries";
 import { cn } from "@/lib/utils";
-
-const normalize = (text: string) =>
-  text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
 export function SlotPicker({
   title,
@@ -48,12 +46,30 @@ export function SlotPicker({
     dialog.current?.showModal();
   }, []);
 
+  // Same search as the recipe list: every word, no accents, ingredients included, best first.
   const filtered = useMemo(() => {
-    const q = normalize(query.trim());
-    if (!q) return recipes;
-    return recipes.filter((r) => normalize(
-          `${r.title} ${r.tags.join(" ")} ${r.course ? COURSE_LABELS[r.course] : ""} ${r.main_ingredient ? MAIN_INGREDIENT_LABELS[r.main_ingredient] : ""}`,
-        ).includes(q));
+    const tokens = parseQuery(query);
+    if (tokens.length === 0) return recipes;
+    return recipes
+      .map((recipe, index) => ({
+        recipe,
+        index,
+        score: searchScore(
+          {
+            title: recipe.title,
+            tags: recipe.tags,
+            labels: [
+              ...(recipe.course ? [COURSE_LABELS[recipe.course]] : []),
+              ...(recipe.main_ingredient ? [MAIN_INGREDIENT_LABELS[recipe.main_ingredient]] : []),
+            ],
+            ingredients: recipe.ingredients,
+          },
+          tokens,
+        ),
+      }))
+      .filter((item): item is { recipe: RecipeOption; index: number; score: number } => item.score !== null)
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .map((item) => item.recipe);
   }, [recipes, query]);
 
   return (

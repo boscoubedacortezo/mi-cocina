@@ -1,6 +1,6 @@
 const ARTICLES = new Set(["el", "la", "los", "las", "un", "una", "unos", "unas"]);
 
-function singularize(word: string) {
+export function singularize(word: string) {
   if (word.length <= 3) return word;
   if (word.endsWith("ces")) return `${word.slice(0, -3)}z`; // lápices -> lapiz
   if (/[lnrdzj]es$/.test(word)) return word.slice(0, -2); // limones -> limon
