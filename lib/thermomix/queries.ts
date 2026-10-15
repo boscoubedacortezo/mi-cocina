@@ -8,6 +8,8 @@ export type ThermomixVersion = {
   /** Null for versions saved before servings were stored. */
   servings: number | null;
   notes: string | null;
+  /** Fingerprint of the recipe when converted; null for versions made before it existed. */
+  source_signature: string | null;
   ingredients_text: string;
   steps: ThermomixStep[];
   cookidoo_text: string;
@@ -19,7 +21,7 @@ export async function getThermomixVersion(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("thermomix_versions")
-    .select("id, servings, notes, ingredients_text, steps, cookidoo_text")
+    .select("id, servings, notes, source_signature, ingredients_text, steps, cookidoo_text")
     .eq("recipe_id", recipeId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -33,6 +35,7 @@ export async function getThermomixVersion(
     id: data.id,
     servings: data.servings,
     notes: data.notes,
+    source_signature: data.source_signature,
     ingredients_text: data.ingredients_text,
     steps: steps.data,
     cookidoo_text: data.cookidoo_text ?? "",

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { convertToThermomix } from "@/lib/ai/convert-thermomix";
 import { ImportError } from "@/lib/ai/errors";
 import { requireUser } from "@/lib/auth-server";
+import { contentSignature } from "@/lib/recipes/auto-meta";
 import { getRecipe } from "@/lib/recipes/queries";
 import { buildCookidooText } from "@/lib/thermomix/cookidoo";
 import { thermomixInputSchema } from "@/lib/thermomix/schema";
@@ -66,6 +67,7 @@ export async function convertToTm7(
     model: "TM7",
     servings: draft.servings,
     notes: draft.notes,
+    source_signature: contentSignature(recipe),
     ingredients_text: draft.ingredients_text,
     steps: draft.steps,
     cookidoo_text: buildCookidooText(draft.ingredients_text, draft.steps),

@@ -348,7 +348,8 @@ export function RecipeForm({
             className="w-28"
           />
           <p className="text-sm text-muted-foreground">
-            Los tiempos los calcula la IA al guardar.
+            Para cuántas raciones están escritas las cantidades. Para ver otras cantidades, usa
+            el selector de raciones de la receta. Los tiempos los calcula la IA al guardar.
           </p>
         </div>
 
