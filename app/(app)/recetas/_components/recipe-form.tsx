@@ -10,15 +10,22 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { prepareImage } from "@/lib/images";
 import {
+  COURSE_LABELS,
+  COURSES,
+  MAIN_INGREDIENT_LABELS,
+  MAIN_INGREDIENTS,
   RECIPE_IMAGES_BUCKET,
   SHOP_SECTIONS,
   UNITS,
+  type Course,
+  type MainIngredient,
   type ShopSection,
   type SourceType,
   type Unit,
@@ -81,6 +88,13 @@ export function RecipeForm({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [servings, setServings] = useState(String(initial?.servings ?? 4));
+  // Empty means "automatic": the AI fills them in when the recipe is saved.
+  const [course, setCourse] = useState<Course | "">(initial?.course ?? "");
+  const [mainIngredient, setMainIngredient] = useState<MainIngredient | "">(
+    initial?.main_ingredient ?? "",
+  );
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+  const [tagDraft, setTagDraft] = useState("");
   const [sourceUrl, setSourceUrl] = useState(initial?.source_url ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [ingredients, setIngredients] = useState<IngredientRow[]>(
@@ -107,6 +121,12 @@ export function RecipeForm({
   const [newImage, setNewImage] = useState<{ blob: Blob; ext: string } | null>(
     null,
   );
+
+  function addTag(raw: string) {
+    const tag = raw.trim().toLowerCase();
+    if (tag && !tags.includes(tag) && tags.length < 20) setTags([...tags, tag]);
+    setTagDraft("");
+  }
 
   async function onPickImage(file: File | undefined) {
     if (!file) return;
@@ -143,13 +163,13 @@ export function RecipeForm({
       title,
       description,
       servings: toNumber(servings),
-      // Not edited here: the AI sets times and tags when the recipe is saved.
+      // Times are not edited here: the AI sets them when the recipe is saved.
       // Existing values travel along so saving never erases them.
       prep_minutes: initial?.prep_minutes ?? null,
       cook_minutes: initial?.cook_minutes ?? null,
-      tags: initial?.tags ?? [],
-      course: initial?.course ?? null,
-      main_ingredient: initial?.main_ingredient ?? null,
+      tags,
+      course: course || null,
+      main_ingredient: mainIngredient || null,
       source_type: sourceType,
       source_url: sourceUrl,
       notes,
@@ -283,7 +303,87 @@ export function RecipeForm({
             className="w-28"
           />
           <p className="text-sm text-muted-foreground">
-            Los tiempos y las etiquetas los calcula la IA al guardar.
+            Los tiempos los calcula la IA al guardar.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-course`}>Tipo de plato</Label>
+            <select
+              id={`${formId}-course`}
+              value={course}
+              onChange={(e) => setCourse(e.target.value as Course | "")}
+              className={selectClass}
+            >
+              <option value="">Automático (IA)</option>
+              {COURSES.map((value) => (
+                <option key={value} value={value}>
+                  {COURSE_LABELS[value]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-main`}>Ingrediente principal</Label>
+            <select
+              id={`${formId}-main`}
+              value={mainIngredient}
+              onChange={(e) => setMainIngredient(e.target.value as MainIngredient | "")}
+              className={selectClass}
+            >
+              <option value="">Automático (IA)</option>
+              {MAIN_INGREDIENTS.map((value) => (
+                <option key={value} value={value}>
+                  {MAIN_INGREDIENT_LABELS[value]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-tags`}>Etiquetas</Label>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => (
+                <Badge key={tag} variant="secondary" className="gap-1">
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => setTags(tags.filter((t) => t !== tag))}
+                    aria-label={`Quitar etiqueta ${tag}`}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Input
+              id={`${formId}-tags`}
+              value={tagDraft}
+              placeholder="p. ej. vegetariano, horno"
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value.endsWith(",")) addTag(value.slice(0, -1));
+                else setTagDraft(value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addTag(tagDraft);
+                }
+              }}
+              onBlur={() => addTag(tagDraft)}
+            />
+            <Button type="button" variant="outline" onClick={() => addTag(tagDraft)}>
+              Añadir
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Lo que dejes en automático lo rellena la IA al guardar. Lo que pongas tú no se cambia.
           </p>
         </div>
       </section>

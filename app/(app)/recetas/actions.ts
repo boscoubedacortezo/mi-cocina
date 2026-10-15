@@ -67,9 +67,9 @@ async function autoFillMeta(
     }
     if (plan.tags && estimate.tags.length) patch.tags = estimate.tags;
     if (plan.categories) {
-      // In "missing" mode only the absent one is filled.
-      if (mode === "all" || recipe.course === null) patch.course = estimate.course;
-      if (mode === "all" || recipe.main_ingredient === null) patch.main_ingredient = estimate.main_ingredient;
+      // Only the absent one is filled: what the user chose is never overwritten.
+      if (recipe.course === null) patch.course = estimate.course;
+      if (recipe.main_ingredient === null) patch.main_ingredient = estimate.main_ingredient;
     }
     if (Object.keys(patch).length) {
       await supabase.from("recipes").update(patch).eq("id", id);

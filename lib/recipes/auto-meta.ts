@@ -1,14 +1,14 @@
 export type AutoMetaMode =
   /** Fill only what is empty (new recipes: imports may bring their own values). */
   | "missing"
-  /** The recipe's content changed: recompute everything. */
+  /** The recipe's content changed: recompute the times. */
   | "all";
 
 /**
- * Which details the AI should write when a recipe is saved. In "missing" mode
- * it never touches what exists: times only when both are empty (a salad has no
- * cooking time on purpose), categories only when one is missing, tags only when
- * there are none and the AI is being called anyway.
+ * Which details the AI should write when a recipe is saved. Tags and
+ * categories belong to the user once set, so the AI only fills them when they
+ * are empty (tags only if it is being called anyway). Times are the AI's:
+ * filled when both are empty, and recomputed when the content changed ("all").
  */
 export function planAutoMeta(
   recipe: {
@@ -22,8 +22,10 @@ export function planAutoMeta(
   mode: AutoMetaMode,
 ) {
   if (recipe.stepCount === 0) return { times: false, tags: false, categories: false };
-  if (mode === "all") return { times: true, tags: true, categories: true };
-  const times = recipe.prep_minutes === null && recipe.cook_minutes === null;
+
+  // Tags and categories belong to the user once set: the AI only fills what is
+  // empty, in both modes. Times are the AI's, so they are recomputed on "all".
+  const times = mode === "all" || (recipe.prep_minutes === null && recipe.cook_minutes === null);
   // Recipes saved before categories existed get theirs on the next save.
   const categories = recipe.course === null || recipe.main_ingredient === null;
   return {
