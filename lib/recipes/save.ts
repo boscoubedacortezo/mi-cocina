@@ -157,24 +157,29 @@ export async function deleteByIds(
 }
 
 /**
- * Copies a remote photo into the user's private storage and returns its path.
- * Best effort: a recipe is worth saving without its photo, so failures give null.
+ * Copies a remote photo into the user's private storage. Best effort: a recipe is
+ * worth saving without its photo, so a failure gives the reason instead of throwing.
  */
 export async function saveImageFromUrl(
   supabase: Supabase,
   userId: string,
   imageUrl: string,
   allowHost: (hostname: string) => boolean,
-): Promise<string | null> {
+): Promise<{ path: string } | { error: string }> {
   try {
     const image = await fetchPublicImage(imageUrl, allowHost);
     const path = `${userId}/${crypto.randomUUID()}.${image.ext}`;
     const { error } = await supabase.storage
       .from(RECIPE_IMAGES_BUCKET)
       .upload(path, image.bytes, { contentType: image.contentType });
-    return error ? null : path;
+    if (error) {
+      console.error("[recipes] photo upload failed:", error.message);
+      return { error: `No se pudo guardar la imagen (${error.message}).` };
+    }
+    return { path };
   } catch (error) {
-    console.error("[recipes] photo skipped:", error instanceof Error ? error.message : error);
-    return null;
+    const message = error instanceof Error ? error.message : "error desconocido";
+    console.error("[recipes] photo skipped:", message);
+    return { error: message };
   }
 }

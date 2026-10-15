@@ -178,17 +178,27 @@ export async function fetchPublicImage(rawUrl: string, allowHost: (hostname: str
 
     let response: Response;
     try {
-      response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) });
-    } catch {
-      throw new ImportError("No se pudo descargar la imagen.");
+      response = await fetch(url, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+        // Some image CDNs refuse requests that do not look like a browser's.
+        headers: {
+          "user-agent":
+            "Mozilla/5.0 (compatible; MiCocinaBot/1.0; personal recipe importer)",
+          accept: "image/avif,image/webp,image/jpeg,image/png,image/*;q=0.8",
+        },
+      });
+    } catch (error) {
+      const reason = error instanceof Error && error.name === "TimeoutError" ? "tardó demasiado" : "sin respuesta";
+      throw new ImportError(`No se pudo descargar la imagen (${reason}).`);
     }
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get("location");
-      if (!location) throw new ImportError("No se pudo descargar la imagen.");
+      if (!location) throw new ImportError("No se pudo descargar la imagen (redirección sin destino).");
       url = new URL(location, url);
       continue;
     }
-    if (!response.ok) throw new ImportError("No se pudo descargar la imagen.");
+    if (!response.ok) throw new ImportError(`No se pudo descargar la imagen (el servidor respondió ${response.status}).`);
 
     const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim();
     if (!/^image\/(jpeg|png|webp)$/.test(contentType)) {

@@ -98,23 +98,29 @@ export async function addCookidooRecipe(input: unknown): Promise<MenuResult> {
 
   /** Recipes imported before photos were saved get theirs when the link is added again. */
   const addMissingPhoto = async (recipeId: string, imageUrl: string | null) => {
-    if (!imageUrl) return;
-    const path = await saveImageFromUrl(supabase, userId, imageUrl, isCookidooImageHost);
-    if (path) await supabase.from("recipes").update({ image_path: path }).eq("id", recipeId);
+    if (!imageUrl) return "la página de Cookidoo no incluye foto";
+    const saved = await saveImageFromUrl(supabase, userId, imageUrl, isCookidooImageHost);
+    if ("error" in saved) return saved.error;
+    const { error } = await supabase.from("recipes").update({ image_path: saved.path }).eq("id", recipeId);
+    return error ? `No se pudo asociar la foto (${error.message}).` : null;
   };
 
   const reuseExisting = async (recipe: { id: string; title: string; image_path: string | null }) => {
+    let photoProblem: string | null = null;
     if (!recipe.image_path) {
       try {
-        await addMissingPhoto(recipe.id, (await loadWebSource(url)).imageUrl);
-      } catch {
-        // The photo is a nicety: the recipe is usable without it.
+        photoProblem = await addMissingPhoto(recipe.id, (await loadWebSource(url)).imageUrl);
+      } catch (error) {
+        photoProblem = error instanceof Error ? error.message : "no se pudo leer la página";
       }
     }
     if (!(await assignSlot(supabase, slot, recipe.id, servings))) return fail(GENERIC_ERROR);
     revalidatePath("/menu");
     revalidatePath("/recetas");
-    return done(`«${recipe.title}» ya estaba en tu recetario.`);
+    return done(
+      `«${recipe.title}» ya estaba en tu recetario.` +
+        (recipe.image_path ? "" : photoProblem ? ` Sin foto: ${photoProblem}` : " Foto añadida."),
+    );
   };
 
   try {
@@ -143,9 +149,15 @@ export async function addCookidooRecipe(input: unknown): Promise<MenuResult> {
     }
 
     // The photo is best effort; a recipe without it is still worth saving.
-    const imagePath = source.imageUrl
-      ? await saveImageFromUrl(supabase, userId, source.imageUrl, isCookidooImageHost)
-      : null;
+    let imagePath: string | null = null;
+    let photoProblem: string | null = null;
+    if (source.imageUrl) {
+      const saved = await saveImageFromUrl(supabase, userId, source.imageUrl, isCookidooImageHost);
+      if ("path" in saved) imagePath = saved.path;
+      else photoProblem = saved.error;
+    } else {
+      photoProblem = "la página de Cookidoo no incluye foto";
+    }
     const id = await insertRecipe(supabase, { ...recipe.data, image_path: imagePath });
     if (!id) {
       if (imagePath) await supabase.storage.from(RECIPE_IMAGES_BUCKET).remove([imagePath]);
@@ -158,7 +170,10 @@ export async function addCookidooRecipe(input: unknown): Promise<MenuResult> {
 
     revalidatePath("/menu");
     revalidatePath("/recetas");
-    return done(`«${recipe.data.title}» añadida a tu recetario y al menú.`);
+    return done(
+      `«${recipe.data.title}» añadida a tu recetario y al menú.` +
+        (photoProblem ? ` Sin foto: ${photoProblem}` : ""),
+    );
   } catch (error) {
     if (error instanceof ImportError) return fail(error.message);
     console.error("[menu] cookidoo import failed:", error);
