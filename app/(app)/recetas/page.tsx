@@ -23,7 +23,13 @@ function first(value: string | string[] | undefined) {
   return (Array.isArray(value) ? value[0] : value)?.trim() || undefined;
 }
 
-type Filters = { q?: string; tag?: string; tipo?: Course; principal?: MainIngredient };
+type Filters = {
+  q?: string;
+  tag?: string;
+  tipo?: Course;
+  principal?: MainIngredient;
+  thermomix?: "1";
+};
 
 function href(filters: Filters) {
   const next = new URLSearchParams();
@@ -74,13 +80,14 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
   // Unknown values in the URL are ignored instead of producing an empty list.
   const tipo = COURSES.find((value) => value === first(params.tipo));
   const principal = MAIN_INGREDIENTS.find((value) => value === first(params.principal));
-  const current: Filters = { q, tag, tipo, principal };
+  const thermomix = first(params.thermomix) === "1" ? "1" : undefined;
+  const current: Filters = { q, tag, tipo, principal, thermomix };
 
   const [recipes, facets] = await Promise.all([
-    listRecipes({ q, tag, course: tipo, main: principal }),
+    listRecipes({ q, tag, course: tipo, main: principal, thermomix: Boolean(thermomix) }),
     listFacets(),
   ]);
-  const filtering = Boolean(q || tag || tipo || principal);
+  const filtering = Boolean(q || tag || tipo || principal || thermomix);
 
   return (
     <div className="flex flex-col gap-4">
@@ -95,6 +102,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
         {tag && <input type="hidden" name="tag" value={tag} />}
         {tipo && <input type="hidden" name="tipo" value={tipo} />}
         {principal && <input type="hidden" name="principal" value={principal} />}
+        {thermomix && <input type="hidden" name="thermomix" value={thermomix} />}
         <div className="relative flex-1">
           <Search
             className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -133,6 +141,22 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
           label: MAIN_INGREDIENT_LABELS[value],
           href: href({ ...current, principal: value }),
         }))}
+      />
+      <FilterRow
+        label="Thermomix"
+        allHref={href({ ...current, thermomix: undefined })}
+        active={thermomix}
+        options={
+          facets.hasThermomix || thermomix
+            ? [
+                {
+                  value: "1",
+                  label: "Con versión Thermomix",
+                  href: href({ ...current, thermomix: "1" }),
+                },
+              ]
+            : []
+        }
       />
       <FilterRow
         label="Etiquetas"

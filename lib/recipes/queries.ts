@@ -77,12 +77,15 @@ export async function listRecipes(filters: {
   tag?: string;
   course?: Course;
   main?: MainIngredient;
+  /** Only recipes that have a Thermomix version. */
+  thermomix?: boolean;
 }) {
   const supabase = await createClient();
   let query = supabase
     .from("recipes")
     .select(
-      "id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, image_path, thermomix_versions(id)",
+      // "!inner" turns the join into a filter: only recipes with at least one version.
+      `id, title, tags, course, main_ingredient, prep_minutes, cook_minutes, image_path, thermomix_versions${filters.thermomix ? "!inner" : ""}(id)`,
     )
     .order("created_at", { ascending: false });
 
@@ -108,13 +111,17 @@ export async function listRecipes(filters: {
 /** What the list filters can offer: only values that at least one recipe has. */
 export async function listFacets() {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("recipes").select("tags, course, main_ingredient");
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("tags, course, main_ingredient, thermomix_versions(id)");
   if (error) throw new Error("No se pudieron cargar los filtros.");
 
   const courses = new Set<Course>();
   const mains = new Set<MainIngredient>();
   const tagCounts = new Map<string, number>();
+  let hasThermomix = false;
   for (const row of data) {
+    if (Array.isArray(row.thermomix_versions) && row.thermomix_versions.length > 0) hasThermomix = true;
     if (row.course) courses.add(row.course);
     if (row.main_ingredient) mains.add(row.main_ingredient);
     for (const tag of row.tags as string[]) tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
@@ -122,6 +129,7 @@ export async function listFacets() {
   return {
     courses,
     mains,
+    hasThermomix,
     tags: [...tagCounts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
       .map(([tag]) => tag),
