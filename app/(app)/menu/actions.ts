@@ -12,7 +12,12 @@ import { ensureMenu } from "@/lib/menu/ensure";
 import { weekDates } from "@/lib/menu/dates";
 import { listRecipesForPlanning } from "@/lib/menu/queries";
 import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
-import { isCookidooImageHost, isCookidooUrl, normalizeRecipeUrl } from "@/lib/recipes/cookidoo-url";
+import {
+  extractCookidooUrl,
+  isCookidooImageHost,
+  isCookidooUrl,
+  normalizeRecipeUrl,
+} from "@/lib/recipes/cookidoo-url";
 import { recipeInputSchema } from "@/lib/recipes/schema";
 import { autoFillMeta, insertRecipe, saveImageFromUrl } from "@/lib/recipes/save";
 import {
@@ -67,11 +72,12 @@ export async function setSlot(input: unknown): Promise<MenuResult> {
 
 const cookidooSchema = z.object({
   slot: slotSchema,
+  // What Cookidoo's "share" produces is a sentence with the link inside: keep only the link.
   url: z
     .string()
-    .trim()
-    .max(2000)
-    .refine(isCookidooUrl, "Pega el enlace de una receta de Cookidoo (empieza por https://cookidoo…)."),
+    .max(4000)
+    .transform(extractCookidooUrl)
+    .refine(isCookidooUrl, "No encuentro un enlace de Cookidoo en lo que has pegado."),
   servings: servingsSchema,
 });
 

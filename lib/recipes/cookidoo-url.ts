@@ -25,3 +25,20 @@ export function isCookidooImageHost(hostname: string) {
     COOKIDOO_HOST.test(hostname)
   );
 }
+
+const URL_IN_TEXT = /https?:\/\/[^\s<>"'`]+/gi;
+
+/** Every link inside a text, without the punctuation that follows it in a sentence. */
+export function extractUrls(text: string) {
+  return (text.match(URL_IN_TEXT) ?? []).map((url) => url.replace(/[.,;:!?)\]}»”’]+$/, ""));
+}
+
+/**
+ * The link to use out of what was pasted. Sharing from Cookidoo gives a sentence
+ * with the link in it ("Mira esta receta… https://cookidoo.es/…"): take the
+ * Cookidoo link if there is one, else the first link, else the text as it came.
+ */
+export function extractCookidooUrl(text: string) {
+  const urls = extractUrls(text);
+  return urls.find(isCookidooUrl) ?? urls[0] ?? text.trim();
+}

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMinutes } from "@/lib/recipes/format";
 import { COURSE_LABELS, MAIN_INGREDIENT_LABELS } from "@/lib/recipes/constants";
+import { extractCookidooUrl, isCookidooUrl } from "@/lib/recipes/cookidoo-url";
 import { parseQuery, searchScore } from "@/lib/recipes/search";
 import type { RecipeOption } from "@/lib/menu/queries";
 import { cn } from "@/lib/utils";
@@ -104,11 +105,12 @@ export function SlotPicker({
 
         <form
           className="flex flex-col gap-1.5"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault();
             if (!cookidooUrl.trim()) return;
             setBusy("cookidoo");
-            onAddCookidoo(cookidooUrl.trim());
+            onAddCookidoo(extractCookidooUrl(cookidooUrl));
           }}
         >
           <label htmlFor="cookidoo-url" className="text-sm font-medium">
@@ -117,11 +119,22 @@ export function SlotPicker({
           <div className="flex gap-2">
             <Input
               id="cookidoo-url"
-              type="url"
+              // Not type="url": what Cookidoo copies is a sentence with the link in it.
+              type="text"
               inputMode="url"
+              autoComplete="off"
               value={cookidooUrl}
               onChange={(e) => setCookidooUrl(e.target.value)}
-              placeholder="Pega aquí el enlace"
+              onPaste={(e) => {
+                // Pasting the whole shared text leaves just the link in the field.
+                const text = e.clipboardData.getData("text");
+                const url = extractCookidooUrl(text);
+                if (url !== text.trim() && isCookidooUrl(url)) {
+                  e.preventDefault();
+                  setCookidooUrl(url);
+                }
+              }}
+              placeholder="Pega aquí el enlace (o el texto que copia Cookidoo)"
               disabled={pending}
             />
             <Button type="submit" variant="outline" disabled={pending || !cookidooUrl.trim()}>
