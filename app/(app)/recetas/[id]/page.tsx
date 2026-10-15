@@ -104,7 +104,7 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
             ))}
           </div>
         )}
-        <EquipmentChips thermomix={hasTm7 || fromCookidoo} equipment={recipe.equipment} />
+        <EquipmentChips thermomix={hasTm7 || fromCookidoo} equipment={recipe.equipment} variant="labels" />
         {fromCookidoo && recipe.source_url ? (
           <a
             href={recipe.source_url}

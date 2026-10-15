@@ -1,42 +1,56 @@
-import { ChefHat } from "lucide-react";
+import Image from "next/image";
+import { EQUIPMENT_ICONS } from "@/components/equipment-icons";
 import { EQUIPMENT_LABELS, type Equipment } from "@/lib/recipes/constants";
 import { cn } from "@/lib/utils";
 
 /**
  * How a recipe is cooked. The Thermomix (derived, not stored: own version or Cookidoo)
- * is a filled chip; the traditional way (stored equipment) is grey chips after a
- * "Tradicional" label, so the two versions are never mixed up.
+ * shows as the green logo; the traditional way (stored equipment) as grey chips.
+ * "icons" is the compact form for cards; "labels" adds the names (recipe page).
  */
 export function EquipmentChips({
   thermomix,
   equipment,
+  variant = "icons",
   className,
 }: {
   thermomix: boolean;
   equipment: Equipment[];
+  variant?: "icons" | "labels";
   className?: string;
 }) {
   if (!thermomix && equipment.length === 0) return null;
-  const chip = "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs";
+  const labels = variant === "labels";
+  const chip = cn(
+    "inline-flex h-6 items-center justify-center gap-1 rounded-md bg-muted text-muted-foreground",
+    labels ? "px-1.5 text-xs" : "w-6",
+  );
   return (
     <ul className={cn("flex flex-wrap items-center gap-1", className)} aria-label="Cómo se cocina">
       {thermomix && (
-        <li className={cn(chip, "bg-primary/15 font-medium text-primary")}>
-          <ChefHat className="size-3.5" aria-hidden />
-          Thermomix
+        <li
+          title="Thermomix"
+          className="inline-flex h-6 items-center gap-1.5 overflow-hidden rounded-md bg-[#00ac46] text-xs font-medium text-white"
+        >
+          <Image
+            src="/cookidoo.png"
+            alt={labels ? "" : "Thermomix"}
+            width={21}
+            height={24}
+            className="h-6 w-auto"
+          />
+          {labels && <span className="pr-1.5">Thermomix</span>}
         </li>
       )}
-      {thermomix && equipment.length > 0 && (
-        <li className="mx-0.5 h-4 w-px bg-border" role="presentation" />
-      )}
-      {equipment.length > 0 && (
-        <li className="text-xs text-muted-foreground">Tradicional:</li>
-      )}
-      {equipment.map((item) => (
-        <li key={item} className={cn(chip, "bg-muted text-muted-foreground")}>
-          {EQUIPMENT_LABELS[item]}
-        </li>
-      ))}
+      {equipment.map((item) => {
+        const Icon = EQUIPMENT_ICONS[item];
+        return (
+          <li key={item} title={EQUIPMENT_LABELS[item]} className={chip}>
+            <Icon className="size-4" aria-hidden />
+            {labels ? EQUIPMENT_LABELS[item] : <span className="sr-only">{EQUIPMENT_LABELS[item]}</span>}
+          </li>
+        );
+      })}
     </ul>
   );
 }
