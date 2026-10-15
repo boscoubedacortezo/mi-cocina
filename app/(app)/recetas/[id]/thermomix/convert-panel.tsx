@@ -71,7 +71,7 @@ export function ConvertPanel({
           </>
         ) : (
           <>
-            <Sparkles /> {replacing ? "Volver a convertir" : "Convertir a TM7"}
+            <Sparkles /> {replacing ? "Volver a convertir" : "Convertir a Thermomix"}
           </>
         )}
       </Button>

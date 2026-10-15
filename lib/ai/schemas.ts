@@ -76,3 +76,13 @@ export const aiEstimateSchema = z.object({
 });
 
 export type AiEstimate = z.infer<typeof aiEstimateSchema>;
+
+/** A recipe's steps rewritten for a different number of servings. */
+export const aiAdaptSchema = z.object({
+  steps: z.array(z.string()),
+  tips: z.array(z.string()),
+  prep_minutes: z.number().int().nullable(),
+  cook_minutes: z.number().int().nullable(),
+});
+
+export type AiAdapt = z.infer<typeof aiAdaptSchema>;

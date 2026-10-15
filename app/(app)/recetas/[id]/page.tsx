@@ -9,7 +9,7 @@ import { formatMinutes } from "@/lib/recipes/format";
 import { getRecipe } from "@/lib/recipes/queries";
 import { hasThermomixVersion } from "@/lib/thermomix/queries";
 import { DeleteRecipeButton } from "../_components/delete-recipe-button";
-import { ScalableIngredients } from "./scalable-ingredients";
+import { ScalableRecipe } from "./scalable-recipe";
 
 export async function generateMetadata({
   params,
@@ -18,6 +18,9 @@ export async function generateMetadata({
   const recipe = await getRecipe(id);
   return { title: recipe.title };
 }
+
+// The adapt server action runs under this page: allow time for the model.
+export const maxDuration = 60;
 
 function hostname(url: string) {
   try {
@@ -93,7 +96,7 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
           href={`/recetas/${recipe.id}/thermomix`}
           className={buttonVariants({ size: "lg" })}
         >
-          <ChefHat /> {hasTm7 ? "Ver versión Thermomix" : "Convertir a TM7"}
+          <ChefHat /> {hasTm7 ? "Ver versión Thermomix" : "Convertir a Thermomix"}
         </Link>
         <div className="flex gap-2">
           <Link
@@ -106,31 +109,12 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
         </div>
       </header>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="font-heading text-lg font-semibold">Ingredientes</h2>
-        <ScalableIngredients
-          baseServings={recipe.servings}
-          ingredients={recipe.ingredients}
-        />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="font-heading text-lg font-semibold">Preparación</h2>
-        {recipe.steps.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin pasos.</p>
-        ) : (
-          <ol className="flex flex-col gap-3">
-            {recipe.steps.map((step, index) => (
-              <li key={step.id} className="flex gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
-                  {index + 1}
-                </span>
-                <p className="whitespace-pre-line">{step.text}</p>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
+      <ScalableRecipe
+        recipeId={recipe.id}
+        baseServings={recipe.servings}
+        ingredients={recipe.ingredients}
+        steps={recipe.steps}
+      />
 
       {recipe.notes && (
         <section className="flex flex-col gap-2">

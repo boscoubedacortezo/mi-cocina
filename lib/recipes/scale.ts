@@ -44,6 +44,17 @@ export function scaleAmount(quantity: number | null, unit: Unit | null, factor: 
   return { quantity: amount, unit: scaledUnit };
 }
 
+/** "300 g", "½ cda": the amount alone. Counts and spoons use fractions. */
+export function formatAmount(quantity: number | null, unit: Unit | null) {
+  const measured = unit === "g" || unit === "kg" || unit === "ml" || unit === "l";
+  return [
+    quantity === null ? "" : measured ? formatQuantity(quantity) : formatFriendly(quantity),
+    unit,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 /** "300 g de harina", scaled. Counts and spoons use fractions ("½ cebolla"). */
 export function formatScaledIngredient(
   item: { name: string; quantity: number | null; unit: Unit | null },
@@ -51,12 +62,6 @@ export function formatScaledIngredient(
 ) {
   if (item.unit === "al gusto") return `${item.name} al gusto`;
   const { quantity, unit } = scaleAmount(item.quantity, item.unit, factor);
-  const measured = unit === "g" || unit === "kg" || unit === "ml" || unit === "l";
-  const amount = [
-    quantity === null ? "" : measured ? formatQuantity(quantity) : formatFriendly(quantity),
-    unit,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const amount = formatAmount(quantity, unit);
   return amount ? `${amount} de ${item.name}` : item.name;
 }
