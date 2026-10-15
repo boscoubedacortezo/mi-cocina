@@ -23,3 +23,18 @@ export function normalizeName(name: string) {
     .map(singularize)
     .join(" ");
 }
+
+// Words that only describe how tap water is used in a recipe.
+const TAP_WATER_WORDS = new Set([
+  "templada", "templado", "tibia", "tibio", "fria", "frio", "caliente", "hirviendo",
+  "hirviente", "helada", "fresca", "del", "grifo", "natural", "potable", "filtrada", "filtrado",
+]);
+
+/**
+ * "agua", "agua templada", "agua del grifo"... are not bought. Bottled or flavoured
+ * waters ("agua mineral", "agua de coco", "agua de azahar") still are.
+ */
+export function isTapWater(name: string) {
+  const [first, ...rest] = normalizeName(name).split(" ");
+  return first === "agua" && rest.every((word) => TAP_WATER_WORDS.has(word));
+}

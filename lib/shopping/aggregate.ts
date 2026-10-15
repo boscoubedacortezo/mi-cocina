@@ -3,7 +3,7 @@ import {
   type ShopSection,
   type Unit,
 } from "@/lib/recipes/constants";
-import { normalizeName } from "./normalize";
+import { isTapWater, normalizeName } from "./normalize";
 import { UNIT_WEIGHTS } from "./unit-weights";
 
 export type SourceIngredient = {
@@ -71,7 +71,7 @@ export function aggregateIngredients(
     for (const item of ingredients) {
       const name = item.name.trim();
       const normalized = normalizeName(name);
-      if (!normalized) continue;
+      if (!normalized || isTapWater(name)) continue;
 
       const { family, toBase } = familyOf(item.unit);
       const key = `${normalized}|${family}`;
