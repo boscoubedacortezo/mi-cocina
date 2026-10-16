@@ -25,7 +25,8 @@ type Props = {
   tags: string[];
   /** How a recipe is cooked: Thermomix first, then the rest that exist. */
   cooking: Option[];
-  hasCookidoo: boolean;
+  /** Where recipes come from: only the origins that exist. */
+  origins: Option[];
 };
 
 function Group({
@@ -72,7 +73,7 @@ function Sheet({
   mains,
   tags,
   cooking,
-  hasCookidoo,
+  origins,
   onClose,
 }: Props & { onClose: () => void }) {
   const router = useRouter();
@@ -117,12 +118,7 @@ function Sheet({
         <Group title="Tipo de plato" options={courses} selected={values.tipo} onSelect={set("tipo")} />
         <Group title="Ingrediente principal" options={mains} selected={values.principal} onSelect={set("principal")} />
         <Group title="Cómo se cocina" options={cooking} selected={values.cocina} onSelect={set("cocina")} />
-        <Group
-          title="Origen"
-          options={hasCookidoo || values.origen ? [{ value: "cookidoo", label: "De Cookidoo" }] : []}
-          selected={values.origen}
-          onSelect={set("origen")}
-        />
+        <Group title="Origen" options={origins} selected={values.origen} onSelect={set("origen")} />
         <Group
           title="Etiquetas"
           options={tags.map((tag) => ({ value: tag, label: tag }))}

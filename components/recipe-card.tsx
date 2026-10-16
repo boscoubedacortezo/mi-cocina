@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ThermomixIcon } from "@/components/equipment-icons";
 import { EquipmentChips } from "@/components/equipment-chips";
+import { OriginPill } from "@/components/origin-pill";
 import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { RecipePlaceholder } from "@/components/recipe-placeholder";
 import { COURSE_LABELS } from "@/lib/recipes/constants";
@@ -34,15 +34,7 @@ export function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
             <RecipePlaceholder recipe={recipe} className="aspect-[16/9]" />
           )}
           {/* Where it comes from goes on the photo; how it is cooked goes below. */}
-          {recipe.from_cookidoo && (
-            <span
-              className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-[#00ac46] px-2 py-1 text-xs font-medium text-white shadow-sm"
-              title="Receta de Cookidoo: los pasos están allí"
-            >
-              <ThermomixIcon className="size-3.5" aria-hidden />
-              Cookidoo
-            </span>
-          )}
+          <OriginPill origin={recipe.origin} className="absolute top-2 right-2" />
         </div>
         <div className="flex flex-col gap-2 p-3">
           <h2 className="font-heading leading-snug font-medium">

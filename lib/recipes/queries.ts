@@ -16,6 +16,7 @@ import {
   type SourceType,
   type Unit,
 } from "./constants";
+import { recipeOrigin, type Origin } from "./origin";
 
 export type RecipeSummary = {
   id: string;
@@ -33,6 +34,8 @@ export type RecipeSummary = {
   has_thermomix: boolean;
   /** Imported from a Cookidoo link: it is cooked in Cookidoo, so it has no steps here. */
   from_cookidoo: boolean;
+  /** Where it comes from (Cookidoo, Instagram, a website, typed by hand...). */
+  origin: Origin;
 };
 
 export type RecipeDetail = {
@@ -88,6 +91,7 @@ type ListRow = {
   prep_minutes: number | null;
   cook_minutes: number | null;
   image_path: string | null;
+  source_type: SourceType;
   source_url: string | null;
   description?: string | null;
   notes?: string | null;
@@ -102,8 +106,8 @@ export async function listRecipes(filters: {
   main?: MainIngredient;
   /** "thermomix" (own version or from Cookidoo) or one of the other ways of cooking. */
   cocina?: typeof THERMOMIX_FILTER | Equipment;
-  /** Only recipes imported from a Cookidoo link. */
-  origen?: "cookidoo";
+  /** Only recipes from this origin. */
+  origen?: Origin;
 }) {
   const supabase = await createClient();
   const tokens = parseQuery(filters.q ?? "");
@@ -120,6 +124,7 @@ export async function listRecipes(filters: {
     "prep_minutes",
     "cook_minutes",
     "image_path",
+    "source_type",
     "source_url",
     ...(searching ? ["description", "notes", "recipe_ingredients(name)"] : []),
     "thermomix_versions(id)",
@@ -180,11 +185,12 @@ export async function listRecipes(filters: {
     image_url: row.image_path ? (urls.get(row.image_path) ?? null) : null,
     has_thermomix: Array.isArray(row.thermomix_versions) && row.thermomix_versions.length > 0,
     from_cookidoo: isCookidooUrl(row.source_url),
+    origin: recipeOrigin(row.source_type, row.source_url),
   }));
   // Decided here, with the same rules that draw the card, instead of URL patterns in SQL.
   return recipes.filter(
     (recipe) =>
-      (filters.origen !== "cookidoo" || recipe.from_cookidoo) &&
+      (!filters.origen || recipe.origin === filters.origen) &&
       (filters.cocina !== THERMOMIX_FILTER || recipe.has_thermomix || recipe.from_cookidoo),
   );
 }
@@ -194,7 +200,7 @@ export async function listFacets() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("recipes")
-    .select("tags, course, main_ingredient, equipment, source_url, thermomix_versions(id)");
+    .select("tags, course, main_ingredient, equipment, source_type, source_url, thermomix_versions(id)");
   if (error) throw new Error("No se pudieron cargar los filtros.");
 
   const courses = new Set<Course>();
@@ -202,11 +208,11 @@ export async function listFacets() {
   const tagCounts = new Map<string, number>();
   const equipment = new Set<Equipment>();
   let hasThermomix = false;
-  let hasCookidoo = false;
+  const origins = new Set<Origin>();
   for (const row of data) {
+    origins.add(recipeOrigin(row.source_type as SourceType, row.source_url));
     if (Array.isArray(row.thermomix_versions) && row.thermomix_versions.length > 0) hasThermomix = true;
     if (isCookidooUrl(row.source_url)) {
-      hasCookidoo = true;
       hasThermomix = true; // from Cookidoo means cooked in the Thermomix
     }
     for (const item of (row.equipment ?? []) as Equipment[]) equipment.add(item);
@@ -219,7 +225,7 @@ export async function listFacets() {
     mains,
     equipment,
     hasThermomix,
-    hasCookidoo,
+    origins,
     tags: [...tagCounts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es"))
       .map(([tag]) => tag),

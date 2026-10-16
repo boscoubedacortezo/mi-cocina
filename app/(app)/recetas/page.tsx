@@ -16,6 +16,7 @@ import {
   type Equipment,
   type MainIngredient,
 } from "@/lib/recipes/constants";
+import { ORIGINS, ORIGIN_LABELS, type Origin } from "@/lib/recipes/origin";
 import { listFacets, listRecipes } from "@/lib/recipes/queries";
 import { FiltersButton } from "./filters-sheet";
 import { SearchInput } from "./search-input";
@@ -34,7 +35,7 @@ type Filters = {
   /** How it is cooked: "thermomix" or one of the other ways. */
   cocina?: typeof THERMOMIX_FILTER | Equipment;
   /** Where it comes from. */
-  origen?: "cookidoo";
+  origen?: Origin;
 };
 
 function href(filters: Filters) {
@@ -54,7 +55,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
   const cocinaParam = first(params.cocina);
   const cocina =
     cocinaParam === THERMOMIX_FILTER ? THERMOMIX_FILTER : EQUIPMENT.find((value) => value === cocinaParam);
-  const origen = first(params.origen) === "cookidoo" ? "cookidoo" : undefined;
+  const origen = ORIGINS.find((value) => value === first(params.origen));
   const current: Filters = { q, tag, tipo, principal, cocina, origen };
 
   const [recipes, facets] = await Promise.all([
@@ -74,7 +75,7 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
       label: cocina === THERMOMIX_FILTER ? "Thermomix" : EQUIPMENT_LABELS[cocina],
       href: href({ ...current, cocina: undefined }),
     },
-    origen && { label: "De Cookidoo", href: href({ ...current, origen: undefined }) },
+    origen && { label: ORIGIN_LABELS[origen], href: href({ ...current, origen: undefined }) },
     tag && { label: tag, href: href({ ...current, tag: undefined }) },
   ].filter((filter): filter is { label: string; href: string } => Boolean(filter));
 
@@ -113,7 +114,10 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
               label: EQUIPMENT_LABELS[value],
             })),
           ]}
-          hasCookidoo={facets.hasCookidoo}
+          origins={ORIGINS.filter((value) => facets.origins.has(value)).map((value) => ({
+            value,
+            label: ORIGIN_LABELS[value],
+          }))}
         />
       </form>
 
