@@ -161,10 +161,11 @@ function tiktokCaption($: cheerio.CheerioAPI) {
     return {
       caption: item?.desc?.trim() ?? "",
       author: item?.author?.nickname || item?.author?.uniqueId || null,
+      // `cover` is the one the creator picked; `originCover` is just the first frame.
       image:
-        item?.video?.originCover ||
         item?.video?.cover ||
         $('meta[property="og:image"]').attr("content") ||
+        item?.video?.originCover ||
         null,
     };
   } catch {
