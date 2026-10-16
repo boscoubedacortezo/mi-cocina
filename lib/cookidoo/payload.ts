@@ -29,7 +29,7 @@ export type CookidooStep = {
   type: "STEP";
   text: string;
   annotations: {
-    type: Setting["type"];
+    type: Setting["type"] | "INGREDIENT";
     name?: string;
     data: Record<string, unknown>;
     position: { offset: number; length: number };
@@ -113,25 +113,57 @@ export function buildSetting(step: ThermomixStep): Setting | null {
   return { text: parts.join("/"), type: "TTS", data };
 }
 
-/** A step: the prose, then (as the editor does) the setting text appended and annotated. */
-export function buildStep(step: ThermomixStep): CookidooStep {
+const isLetter = (char: string | undefined) => char !== undefined && /\p{L}/u.test(char);
+
+/**
+ * Where each ingredient line appears, word for word, in the prose. Longer lines go first
+ * so one that contains another wins, and nothing overlaps or matches inside a word.
+ */
+function findIngredients(prose: string, ingredients: string[]) {
+  const found: { offset: number; line: string }[] = [];
+  const lines = [...new Set(ingredients)].filter((line) => line.length >= 3);
+  for (const line of lines.sort((a, b) => b.length - a.length)) {
+    let from = 0;
+    while (from <= prose.length - line.length) {
+      const offset = prose.indexOf(line, from);
+      if (offset === -1) break;
+      const end = offset + line.length;
+      const clean = !isLetter(prose[offset - 1]) && !isLetter(prose[end]);
+      const free = found.every((hit) => end <= hit.offset || offset >= hit.offset + hit.line.length);
+      if (clean && free) {
+        found.push({ offset, line });
+        break;
+      }
+      from = offset + 1;
+    }
+  }
+  return found.sort((a, b) => a.offset - b.offset);
+}
+
+/**
+ * A step: the prose with its ingredients linked, then (as the editor does) the setting
+ * text appended and annotated.
+ */
+export function buildStep(step: ThermomixStep, ingredients: string[] = []): CookidooStep {
   const prose = step.text.trim();
+  const annotations: CookidooStep["annotations"] = findIngredients(prose, ingredients).map(
+    ({ offset, line }) => ({
+      type: "INGREDIENT",
+      data: { description: line },
+      position: { offset, length: line.length },
+    }),
+  );
   const setting = buildSetting(step);
-  if (!setting) return { type: "STEP", text: prose, annotations: [] };
+  if (!setting) return { type: "STEP", text: prose, annotations };
 
   const { text, type, name, data } = setting;
-  return {
-    type: "STEP",
-    text: `${prose} ${text}`,
-    annotations: [
-      {
-        type,
-        ...(name ? { name } : {}),
-        data,
-        position: { offset: prose.length + 1, length: text.length },
-      },
-    ],
-  };
+  annotations.push({
+    type,
+    ...(name ? { name } : {}),
+    data,
+    position: { offset: prose.length + 1, length: text.length },
+  });
+  return { type: "STEP", text: `${prose} ${text}`, annotations };
 }
 
 export type CookidooRecipeInput = {
@@ -145,6 +177,10 @@ export type CookidooRecipeInput = {
 
 /** The calls the editor makes, in order: create, then PATCH each part of the recipe. */
 export function buildCookidooRecipe(input: CookidooRecipeInput) {
+  const ingredientLines = input.ingredientsText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
   const prep = (input.prepMinutes ?? 0) * 60;
   const total = Math.max((input.totalMinutes ?? 0) * 60, prep);
   return {
@@ -153,13 +189,9 @@ export function buildCookidooRecipe(input: CookidooRecipeInput) {
     patches: [
       { totalTime: total, prepTime: prep, yield: { value: input.servings, unitText: "portion" } },
       {
-        ingredients: input.ingredientsText
-          .split("\n")
-          .map((line) => line.trim())
-          .filter(Boolean)
-          .map((text) => ({ type: "INGREDIENT", text })),
+        ingredients: ingredientLines.map((text) => ({ type: "INGREDIENT", text })),
       },
-      { instructions: input.steps.map(buildStep) },
+      { instructions: input.steps.map((step) => buildStep(step, ingredientLines)) },
     ],
     // The value for the TM7 was not captured: sent last and allowed to fail.
     optionalPatches: [{ tools: ["TM7"] }],

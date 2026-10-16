@@ -1,5 +1,5 @@
 /** Checks the generated step settings against what Cookidoo's editor was seen sending. */
-import { buildSetting } from "@/lib/cookidoo/payload";
+import { buildSetting, buildStep } from "@/lib/cookidoo/payload";
 import type { ThermomixStep } from "@/lib/thermomix/schema";
 
 const base: ThermomixStep = {
@@ -52,4 +52,23 @@ const lengths = [30, 24, 26, 14, 13, 23, 15, 18];
 cases.forEach((c, i) => {
   if (c.text.length !== lengths[i]) { failed++; console.log("FAIL length", c.name, c.text.length, lengths[i]); }
 });
+
+// Ingredient links, as the editor saved them (prose written by hand there, without the
+// space before the settings that our steps have).
+const lines = ["1 cebolla (150 g) en cuartos", "3 cucharadas de aceite", "1 kg de pavo cortado en trozos de 2 cm", "sal"];
+const one = buildStep({ ...base, text: "Añadir 1 cebolla (150 g) en cuartos al vaso y cocer" }, lines);
+const two = buildStep({ ...base, text: "Mezclar 3 cucharadas de aceite con 1 kg de pavo cortado en trozos de 2 cm." }, lines);
+const noWord = buildStep({ ...base, text: "Rectificar de salsa y servir." }, lines);
+const check = (name: string, ok: boolean, detail?: unknown) => {
+  if (!ok) failed++;
+  console.log(ok ? "ok  " : "FAIL", name, ok ? "" : JSON.stringify(detail));
+};
+check("one ingredient", JSON.stringify(one.annotations) ===
+  '[{"type":"INGREDIENT","data":{"description":"1 cebolla (150 g) en cuartos"},"position":{"offset":7,"length":28}}]', one);
+check("two ingredients", JSON.stringify(two.annotations.map((a) => a.position)) ===
+  '[{"offset":8,"length":22},{"offset":35,"length":38}]', two);
+check("no match inside a word", noWord.annotations.length === 0, noWord);
+const both = buildStep({ ...base, text: "Añadir 3 cucharadas de aceite.", time_seconds: 60, speed: "1" }, lines);
+check("ingredient before the setting", both.annotations.length === 2 && both.annotations[0].type === "INGREDIENT" &&
+  both.annotations[1].type === "TTS" && both.annotations[1].position.offset === "Añadir 3 cucharadas de aceite.".length + 1, both);
 process.exit(failed ? 1 : 0);
