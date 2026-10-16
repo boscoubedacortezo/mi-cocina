@@ -16,6 +16,11 @@ export function addDays(iso: string, days: number) {
   return new Date(date.getTime() + days * DAY_MS).toISOString().slice(0, 10);
 }
 
+/** Whole days from `from` to `to` (negative if `to` is earlier). */
+export function daysBetween(from: string, to: string) {
+  return Math.round((parseIso(to)!.getTime() - parseIso(from)!.getTime()) / DAY_MS);
+}
+
 /** Monday of the week containing `iso`. */
 export function mondayOf(iso: string) {
   const dayIndex = (parseIso(iso)!.getUTCDay() + 6) % 7; // Monday = 0

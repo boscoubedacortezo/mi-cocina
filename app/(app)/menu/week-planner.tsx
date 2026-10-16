@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { WeekNav } from "@/components/week-nav";
 import type { MenuItemView, RecipeOption } from "@/lib/menu/queries";
-import { DEFAULT_SERVINGS, MEALS, slotKey, type Meal } from "@/lib/menu/schema";
+import { MEALS, slotKey, type Meal } from "@/lib/menu/schema";
 import { cn } from "@/lib/utils";
 import {
   addCookidooRecipe,
@@ -50,6 +50,8 @@ export function WeekPlanner({
   days,
   items,
   recipes,
+  meals,
+  defaultServings,
 }: {
   weekStart: string;
   prevWeek: string;
@@ -60,6 +62,9 @@ export function WeekPlanner({
   days: { date: string; label: string }[];
   items: MenuItemView[];
   recipes: RecipeOption[];
+  /** Meals the user plans (preferences). */
+  meals: Meal[];
+  defaultServings: number;
 }) {
   const [picker, setPicker] = useState<(Slot & { label: string }) | null>(null);
   const [pending, startTransition] = useTransition();
@@ -77,7 +82,14 @@ export function WeekPlanner({
     () => new Set(items.flatMap((i) => (i.recipe ? [i.recipe.id] : []))),
     [items],
   );
-  const emptyCount = days.length * MEALS.length - bySlot.size;
+  // A meal the user no longer plans stays visible on days that still have one.
+  const mealsOf = (date: string) =>
+    MEALS.filter((meal) => meals.includes(meal) || bySlot.has(slotKey(date, meal)));
+  const emptyCount = days.reduce(
+    (count, { date }) =>
+      count + meals.filter((meal) => !bySlot.has(slotKey(date, meal))).length,
+    0,
+  );
 
   const slotInput = (slot: Slot) => ({ weekStart, ...slot });
 
@@ -197,7 +209,7 @@ export function WeekPlanner({
               </button>
               {open && (
                 <div className="mt-2 flex flex-col divide-y">
-                  {MEALS.map((meal) => {
+                  {mealsOf(date).map((meal) => {
                     const item = bySlot.get(slotKey(date, meal));
                     const slot = { date, meal };
                     return (
@@ -332,7 +344,7 @@ export function WeekPlanner({
                 setSlot({
                   slot: slotInput(picker),
                   recipeId,
-                  servings: current?.servings ?? DEFAULT_SERVINGS,
+                  servings: current?.servings ?? defaultServings,
                 }),
               { closePicker: true },
             )
@@ -349,7 +361,7 @@ export function WeekPlanner({
                 addCookidooRecipe({
                   slot: slotInput(picker),
                   url,
-                  servings: current?.servings ?? DEFAULT_SERVINGS,
+                  servings: current?.servings ?? defaultServings,
                 }),
               { success: "Receta de Cookidoo añadida", closePicker: true },
             )

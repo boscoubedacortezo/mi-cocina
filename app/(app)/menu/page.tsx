@@ -9,6 +9,7 @@ import {
   weekDates,
 } from "@/lib/menu/dates";
 import { getWeekItems, listRecipeOptions } from "@/lib/menu/queries";
+import { getMenuPreferences } from "@/lib/settings/queries";
 import { WeekPlanner } from "./week-planner";
 
 export const metadata: Metadata = { title: "Menú semanal" };
@@ -20,7 +21,11 @@ export default async function MenuPage({ searchParams }: PageProps<"/menu">) {
   const today = todayInMadrid();
   const weekStart = resolveWeek((await searchParams).semana, today);
 
-  const [items, recipes] = await Promise.all([getWeekItems(weekStart), listRecipeOptions()]);
+  const [items, recipes, preferences] = await Promise.all([
+    getWeekItems(weekStart),
+    listRecipeOptions(),
+    getMenuPreferences(),
+  ]);
 
   return (
     <WeekPlanner
@@ -33,6 +38,8 @@ export default async function MenuPage({ searchParams }: PageProps<"/menu">) {
       days={weekDates(weekStart).map((date) => ({ date, label: formatDay(date) }))}
       items={items}
       recipes={recipes}
+      meals={preferences.meals}
+      defaultServings={preferences.servings}
     />
   );
 }

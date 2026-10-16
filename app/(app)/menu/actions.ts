@@ -9,8 +9,9 @@ import { planMenu } from "@/lib/ai/plan-menu";
 import { loadWebSource } from "@/lib/ai/web-source";
 import { requireUser } from "@/lib/auth-server";
 import { ensureMenu } from "@/lib/menu/ensure";
-import { weekDates } from "@/lib/menu/dates";
+import { addDays, weekDates } from "@/lib/menu/dates";
 import { listRecipesForPlanning } from "@/lib/menu/queries";
+import { getMenuPreferences } from "@/lib/settings/queries";
 import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
 import {
   extractCookidooUrl,
@@ -21,7 +22,6 @@ import {
 import { recipeInputSchema } from "@/lib/recipes/schema";
 import { autoFillMeta, insertRecipe, saveImageFromUrl } from "@/lib/recipes/save";
 import {
-  DEFAULT_SERVINGS,
   MEALS,
   servingsSchema,
   setSlotSchema,
@@ -270,11 +270,28 @@ async function loadFixed(supabase: Supabase, menuId: string) {
     .map((row) => ({ key: slotKey(row.date, row.meal), recipeId: row.recipe_id as string }));
 }
 
+/** Recipes in other weeks' menus within `days` of this week, to keep repeats apart. */
+async function loadNearby(supabase: Supabase, weekStart: string, menuId: string, days: number) {
+  if (days <= 0) return [];
+  const { data } = await supabase
+    .from("menu_items")
+    .select("date, recipe_id")
+    .neq("menu_id", menuId)
+    .not("recipe_id", "is", null)
+    .gte("date", addDays(weekStart, -days))
+    .lte("date", addDays(weekStart, 6 + days));
+  return ((data ?? []) as { date: string; recipe_id: string }[]).map((row) => ({
+    date: row.date,
+    recipeId: row.recipe_id,
+  }));
+}
+
 async function runPlanner(
   supabase: Supabase,
   weekStart: string,
   target: { date: string; meal: (typeof MEALS)[number] } | null,
 ): Promise<MenuResult> {
+  const preferences = await getMenuPreferences();
   const menuId = await ensureMenu(supabase, weekStart);
   if (!menuId) return fail(GENERIC_ERROR);
   // A deleted recipe leaves its slot with no recipe: free it so it can be filled.
@@ -282,7 +299,9 @@ async function runPlanner(
   const fixedAll = await loadFixed(supabase, menuId);
   if (!fixedAll) return fail(GENERIC_ERROR);
 
-  const allKeys = weekDates(weekStart).flatMap((date) => MEALS.map((meal) => slotKey(date, meal)));
+  const allKeys = weekDates(weekStart).flatMap((date) =>
+    preferences.meals.map((meal) => slotKey(date, meal)),
+  );
   const targetKey = target ? slotKey(target.date, target.meal) : null;
   const filled = new Set(fixedAll.map((f) => f.key));
 
@@ -299,7 +318,8 @@ async function runPlanner(
 
   let plan;
   try {
-    plan = await planMenu({ recipes, fixed, empty, exclude });
+    const nearby = await loadNearby(supabase, weekStart, menuId, preferences.noRepeatDays);
+    plan = await planMenu({ recipes, fixed, empty, exclude, nearby, preferences });
   } catch (error) {
     if (error instanceof ImportError) return fail(error.message);
     console.error("[menu] unexpected error:", error);
@@ -327,7 +347,7 @@ async function runPlanner(
       date,
       meal,
       recipe_id: recipeId,
-      servings: servingsBySlot.get(key) ?? DEFAULT_SERVINGS,
+      servings: servingsBySlot.get(key) ?? preferences.servings,
     };
   });
   // Whole week: never overwrite a slot the user filled meanwhile.
