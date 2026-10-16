@@ -14,6 +14,7 @@ import {
   isCookidooUrl,
   normalizeRecipeUrl,
 } from "@/lib/recipes/cookidoo-url";
+import { SOCIAL_LABELS, socialPlatform } from "@/lib/recipes/social-url";
 import type { RecipeDraft } from "@/lib/recipes/draft";
 
 export type ImportResult =
@@ -68,12 +69,13 @@ async function run(
     note?: string;
     imageUrl?: string | null;
   }>,
+  notRecipeMessage = "No parece que ahí haya una receta.",
 ): Promise<ImportResult> {
   try {
     const { ai, sourceType, sourceUrl, note, imageUrl } = await work();
     const draft = toRecipeDraft(ai, sourceUrl ?? null);
     if (!ai.is_recipe || (draft.ingredients.length === 0 && draft.steps.length === 0)) {
-      return { ok: false, error: "No parece que ahí haya una receta." };
+      return { ok: false, error: notRecipeMessage };
     }
     return { ok: true, draft, sourceType, note: note ?? null, imageUrl: imageUrl ?? null };
   } catch (error) {
@@ -111,8 +113,8 @@ export async function importFromUrl(input: unknown): Promise<ImportResult> {
       .limit(1);
     return data?.[0] as { id: string; title: string } | undefined;
   };
-  const cookidoo = isCookidooUrl(link);
-  if (cookidoo) {
+  const social = socialPlatform(link);
+  if (isCookidooUrl(link) || social) {
     try {
       const known = await existing(normalizeRecipeUrl(link));
       if (known) return duplicateResult(known);
@@ -121,15 +123,22 @@ export async function importFromUrl(input: unknown): Promise<ImportResult> {
     }
   }
 
+  const notRecipeMessage = social
+    ? `El texto de esa publicación de ${SOCIAL_LABELS[social]} no parece una receta (quizá está solo en el vídeo). Pega el texto o sube capturas de pantalla.`
+    : undefined;
   let imageUrl: string | null = null;
   return run(async () => {
     const source = await loadWebSource(link);
     const fromCookidoo = isCookidooUrl(source.finalUrl);
-    // Cookidoo keeps the recipe in the path; the query string is only share trackers.
-    const sourceUrl = fromCookidoo ? normalizeRecipeUrl(source.finalUrl) : source.finalUrl;
-    if (fromCookidoo) {
+    const fromSocial = source.kind === "social";
+    // Cookidoo and social posts keep the recipe in the path; the query string is only share trackers.
+    const sourceUrl =
+      fromCookidoo || fromSocial ? normalizeRecipeUrl(source.finalUrl) : source.finalUrl;
+    if (fromCookidoo || fromSocial) {
       const known = await existing(sourceUrl);
       if (known) throw new DuplicateRecipe(known);
+    }
+    if (fromCookidoo) {
       if (source.imageUrl && isCookidooImageHost(new URL(source.imageUrl).hostname)) {
         imageUrl = source.imageUrl;
       }
@@ -143,9 +152,11 @@ export async function importFromUrl(input: unknown): Promise<ImportResult> {
         ? "La página es muy larga y solo se ha leído el principio. Comprueba que no falte nada."
         : fromCookidoo
           ? "Cookidoo no publica los pasos: aquí quedan los ingredientes y los tiempos."
-          : undefined,
+          : fromSocial
+            ? "Receta leída del texto de la publicación. Si los pasos solo salen en el vídeo, tendrás que completarlos."
+            : undefined,
     };
-  });
+  }, notRecipeMessage);
 }
 
 /**

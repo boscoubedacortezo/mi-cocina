@@ -234,9 +234,9 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
             disabled={pending}
           />
           <p className="text-sm text-muted-foreground">
-            Sirve también para recetas de Cookidoo: se guardan con foto, ingredientes y tiempos
-            (los pasos los tienes allí). Algunas webs bloquean la descarga; si falla, pega el
-            texto de la receta.
+            Sirve también para recetas de Cookidoo (con foto, ingredientes y tiempos; los pasos
+            los tienes allí) y para publicaciones de Instagram y TikTok que traen la receta
+            escrita. Algunas webs bloquean la descarga; si falla, pega el texto de la receta.
           </p>
           <ImportButton pending={pending} disabled={!url.trim()} onClick={importUrl} />
         </section>

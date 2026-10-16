@@ -1,13 +1,15 @@
 import "server-only";
 import * as cheerio from "cheerio";
+import { SOCIAL_LABELS, socialPlatform, type SocialPlatform } from "@/lib/recipes/social-url";
 import { ImportError } from "./errors";
 import { fetchPublicHtml } from "./safe-fetch";
 
 const MAX_TEXT_CHARS = 30_000;
 
 export type WebSource = {
-  /** "json-ld": structured data published by the site; "html": cleaned page text. */
-  kind: "json-ld" | "html";
+  /** "json-ld": structured data published by the site; "html": cleaned page text;
+   * "social": the caption of an Instagram or TikTok post. */
+  kind: "json-ld" | "html" | "social";
   text: string;
   /** True when the page text was cut to fit. */
   truncated: boolean;
@@ -129,9 +131,59 @@ function resolveImage($: cheerio.CheerioAPI, fromRecipe: string | null, base: st
   }
 }
 
+const MIN_CAPTION_CHARS = 40;
+
+/** The text between the quotes of an Instagram preview ("<author> on Instagram: "caption""). */
+function instagramCaption($: cheerio.CheerioAPI) {
+  const description = $('meta[property="og:description"]').attr("content") ?? "";
+  const title = $('meta[property="og:title"]').attr("content") ?? "";
+  const quoted = (text: string) => text.match(/:\s*"([\s\S]*)"\.?\s*$/)?.[1]?.trim() ?? "";
+  const caption = quoted(description) || quoted(title);
+  const author = title.match(/^(.+?) on Instagram/)?.[1]?.trim() ?? null;
+  return { caption, author };
+}
+
+/** TikTok keeps the post (caption, author) in a JSON block of the page. */
+function tiktokCaption($: cheerio.CheerioAPI) {
+  const raw = $("#__UNIVERSAL_DATA_FOR_REHYDRATION__").text();
+  try {
+    const scope = JSON.parse(raw).__DEFAULT_SCOPE__ as Record<string, unknown>;
+    const detail = scope["webapp.video-detail"] as {
+      itemInfo?: { itemStruct?: { desc?: string; author?: { uniqueId?: string; nickname?: string } } };
+    };
+    const item = detail?.itemInfo?.itemStruct;
+    return {
+      caption: item?.desc?.trim() ?? "",
+      author: item?.author?.nickname || item?.author?.uniqueId || null,
+    };
+  } catch {
+    return { caption: "", author: null };
+  }
+}
+
+function socialSource(platform: SocialPlatform, $: cheerio.CheerioAPI, finalUrl: string): WebSource {
+  const { caption, author } = platform === "instagram" ? instagramCaption($) : tiktokCaption($);
+  if (caption.length < MIN_CAPTION_CHARS) {
+    throw new ImportError(
+      `No he podido leer el texto de esa publicación de ${SOCIAL_LABELS[platform]} (o no lo trae). Pega el texto de la receta o sube capturas de pantalla.`,
+    );
+  }
+  const header = `Publicación de ${SOCIAL_LABELS[platform]}${author ? ` de ${author}` : ""}. El texto de la publicación es la receta:`;
+  return {
+    kind: "social",
+    text: `${header}\n${caption}`.slice(0, MAX_TEXT_CHARS),
+    truncated: false,
+    finalUrl,
+    imageUrl: null,
+  };
+}
+
 export async function loadWebSource(url: string): Promise<WebSource> {
   const { html, finalUrl } = await fetchPublicHtml(url);
   const $ = cheerio.load(html);
+
+  const platform = socialPlatform(finalUrl);
+  if (platform) return socialSource(platform, $, finalUrl);
 
   const found = extractJsonLdRecipe($);
   const imageUrl = resolveImage($, found?.image ?? null, finalUrl);
