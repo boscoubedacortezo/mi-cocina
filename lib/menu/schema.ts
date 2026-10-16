@@ -27,12 +27,6 @@ export const slotSchema = z
 
 export const slotAwaySchema = z.object({ slot: slotSchema, away: z.boolean() });
 
-export const dayAwaySchema = z
-  .object({ weekStart: weekStartSchema, date: isoDateSchema, away: z.boolean() })
-  .refine(({ weekStart, date }) => weekDates(weekStart).includes(date), {
-    message: "Ese día no pertenece a la semana.",
-  });
-
 export const setSlotSchema = z.object({
   slot: slotSchema,
   recipeId: z.uuid(),

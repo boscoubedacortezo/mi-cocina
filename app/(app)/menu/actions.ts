@@ -11,7 +11,6 @@ import { listRecipesForPlanning } from "@/lib/menu/queries";
 import { getMenuPreferences } from "@/lib/settings/queries";
 import {
   MEALS,
-  dayAwaySchema,
   setSlotSchema,
   slotAwaySchema,
   slotKey,
@@ -75,37 +74,6 @@ export async function setSlotAway(input: unknown): Promise<MenuResult> {
       { onConflict: "menu_id,date,meal" },
     );
   if (error) return fail(GENERIC_ERROR);
-
-  revalidatePath("/menu");
-  return done();
-}
-
-/** The whole day away (the meals the user plans) or back home (clears the away marks). */
-export async function setDayAway(input: unknown): Promise<MenuResult> {
-  const { supabase } = await requireUser();
-  const parsed = dayAwaySchema.safeParse(input);
-  if (!parsed.success) return fail(parsed.error.issues[0].message);
-  const { weekStart, date, away } = parsed.data;
-
-  const menuId = await ensureMenu(supabase, weekStart);
-  if (!menuId) return fail(GENERIC_ERROR);
-
-  if (away) {
-    const { meals } = await getMenuPreferences();
-    const { error } = await supabase.from("menu_items").upsert(
-      meals.map((meal) => ({ menu_id: menuId, date, meal, recipe_id: null, away: true })),
-      { onConflict: "menu_id,date,meal" },
-    );
-    if (error) return fail(GENERIC_ERROR);
-  } else {
-    const { error } = await supabase
-      .from("menu_items")
-      .delete()
-      .eq("menu_id", menuId)
-      .eq("date", date)
-      .eq("away", true);
-    if (error) return fail(GENERIC_ERROR);
-  }
 
   revalidatePath("/menu");
   return done();

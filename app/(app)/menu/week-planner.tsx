@@ -27,7 +27,6 @@ import {
   clearWeek,
   generateWeek,
   regenerateSlot,
-  setDayAway,
   setSlot,
   setSlotAway,
   setSlotServings,
@@ -193,7 +192,6 @@ export function WeekPlanner({
           const dayMeals = mealsOf(date);
           const dayAway =
             dayMeals.length > 0 && dayMeals.every((meal) => awayKeys.has(slotKey(date, meal)));
-          const dayHasRecipes = dayMeals.some((meal) => bySlot.has(slotKey(date, meal)));
           return (
             <li
               key={date}
@@ -363,26 +361,6 @@ export function WeekPlanner({
                       </div>
                     );
                   })}
-                  <div className="pt-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={pending}
-                      onClick={() => {
-                        if (
-                          !dayAway &&
-                          dayHasRecipes &&
-                          !window.confirm("Se quitarán las recetas de este día. ¿Seguir?")
-                        ) {
-                          return;
-                        }
-                        run(() => setDayAway({ weekStart, date, away: !dayAway }));
-                      }}
-                    >
-                      <MapPin /> {dayAway ? "Volver a casa todo el día" : "Todo el día fuera de casa"}
-                    </Button>
-                  </div>
                 </div>
               )}
             </li>
