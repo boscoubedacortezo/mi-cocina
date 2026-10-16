@@ -11,7 +11,9 @@ import { listRecipesForPlanning } from "@/lib/menu/queries";
 import { getMenuPreferences } from "@/lib/settings/queries";
 import {
   MEALS,
+  dayAwaySchema,
   setSlotSchema,
+  slotAwaySchema,
   slotKey,
   slotSchema,
   weekStartSchema,
@@ -39,7 +41,7 @@ async function assignSlot(
   const { error } = await supabase
     .from("menu_items")
     .upsert(
-      { menu_id: menuId, date: slot.date, meal: slot.meal, recipe_id: recipeId, servings },
+      { menu_id: menuId, date: slot.date, meal: slot.meal, recipe_id: recipeId, servings, away: false },
       { onConflict: "menu_id,date,meal" },
     );
   return !error;
@@ -52,6 +54,58 @@ export async function setSlot(input: unknown): Promise<MenuResult> {
   const { slot, recipeId, servings } = parsed.data;
 
   if (!(await assignSlot(supabase, slot, recipeId, servings))) return fail(GENERIC_ERROR);
+
+  revalidatePath("/menu");
+  return done();
+}
+
+/** Marks a slot "fuera de casa" (replacing its recipe); `clearSlot` undoes it. */
+export async function setSlotAway(input: unknown): Promise<MenuResult> {
+  const { supabase } = await requireUser();
+  const parsed = slotAwaySchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const { slot } = parsed.data;
+
+  const menuId = await ensureMenu(supabase, slot.weekStart);
+  if (!menuId) return fail(GENERIC_ERROR);
+  const { error } = await supabase
+    .from("menu_items")
+    .upsert(
+      { menu_id: menuId, date: slot.date, meal: slot.meal, recipe_id: null, away: true },
+      { onConflict: "menu_id,date,meal" },
+    );
+  if (error) return fail(GENERIC_ERROR);
+
+  revalidatePath("/menu");
+  return done();
+}
+
+/** The whole day away (the meals the user plans) or back home (clears the away marks). */
+export async function setDayAway(input: unknown): Promise<MenuResult> {
+  const { supabase } = await requireUser();
+  const parsed = dayAwaySchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const { weekStart, date, away } = parsed.data;
+
+  const menuId = await ensureMenu(supabase, weekStart);
+  if (!menuId) return fail(GENERIC_ERROR);
+
+  if (away) {
+    const { meals } = await getMenuPreferences();
+    const { error } = await supabase.from("menu_items").upsert(
+      meals.map((meal) => ({ menu_id: menuId, date, meal, recipe_id: null, away: true })),
+      { onConflict: "menu_id,date,meal" },
+    );
+    if (error) return fail(GENERIC_ERROR);
+  } else {
+    const { error } = await supabase
+      .from("menu_items")
+      .delete()
+      .eq("menu_id", menuId)
+      .eq("date", date)
+      .eq("away", true);
+    if (error) return fail(GENERIC_ERROR);
+  }
 
   revalidatePath("/menu");
   return done();
@@ -164,8 +218,14 @@ async function runPlanner(
   const preferences = await getMenuPreferences();
   const menuId = await ensureMenu(supabase, weekStart);
   if (!menuId) return fail(GENERIC_ERROR);
-  // A deleted recipe leaves its slot with no recipe: free it so it can be filled.
-  await supabase.from("menu_items").delete().eq("menu_id", menuId).is("recipe_id", null);
+  // A deleted recipe leaves its slot with no recipe: free it so it can be filled
+  // (a slot marked "fuera de casa" has none on purpose and stays).
+  await supabase
+    .from("menu_items")
+    .delete()
+    .eq("menu_id", menuId)
+    .is("recipe_id", null)
+    .eq("away", false);
   const fixedAll = await loadFixed(supabase, menuId);
   if (!fixedAll) return fail(GENERIC_ERROR);
 
@@ -173,7 +233,16 @@ async function runPlanner(
     preferences.meals.map((meal) => slotKey(date, meal)),
   );
   const targetKey = target ? slotKey(target.date, target.meal) : null;
-  const filled = new Set(fixedAll.map((f) => f.key));
+  // Slots away from home are neither fixed recipes nor empty: the AI leaves them alone.
+  const { data: awayRows } = await supabase
+    .from("menu_items")
+    .select("date, meal")
+    .eq("menu_id", menuId)
+    .eq("away", true);
+  const awayKeys = ((awayRows ?? []) as { date: string; meal: (typeof MEALS)[number] }[]).map((row) =>
+    slotKey(row.date, row.meal),
+  );
+  const filled = new Set([...fixedAll.map((f) => f.key), ...awayKeys]);
 
   // Whole week: fill what is empty. Single slot: replace it, never with its current recipe.
   const empty = targetKey ? [targetKey] : allKeys.filter((key) => !filled.has(key));
@@ -217,6 +286,7 @@ async function runPlanner(
       date,
       meal,
       recipe_id: recipeId,
+      away: false,
       servings: servingsBySlot.get(key) ?? preferences.servings,
     };
   });

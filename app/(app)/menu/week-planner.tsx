@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ChevronDown,
   Loader2,
+  MapPin,
   Minus,
   Moon,
   Plus,
@@ -12,6 +13,7 @@ import {
   Sun,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +27,9 @@ import {
   clearWeek,
   generateWeek,
   regenerateSlot,
+  setDayAway,
   setSlot,
+  setSlotAway,
   setSlotServings,
   type MenuResult,
 } from "./actions";
@@ -77,16 +81,28 @@ export function WeekPlanner({
       ),
     [items],
   );
+  const awayKeys = useMemo(
+    () => new Set(items.filter((i) => i.away).map((i) => slotKey(i.date, i.meal))),
+    [items],
+  );
   const usedIds = useMemo(
     () => new Set(items.flatMap((i) => (i.recipe ? [i.recipe.id] : []))),
     [items],
   );
   // A meal the user no longer plans stays visible on days that still have one.
   const mealsOf = (date: string) =>
-    MEALS.filter((meal) => meals.includes(meal) || bySlot.has(slotKey(date, meal)));
+    MEALS.filter(
+      (meal) =>
+        meals.includes(meal) ||
+        bySlot.has(slotKey(date, meal)) ||
+        awayKeys.has(slotKey(date, meal)),
+    );
   const emptyCount = days.reduce(
     (count, { date }) =>
-      count + meals.filter((meal) => !bySlot.has(slotKey(date, meal))).length,
+      count +
+      meals.filter(
+        (meal) => !bySlot.has(slotKey(date, meal)) && !awayKeys.has(slotKey(date, meal)),
+      ).length,
     0,
   );
 
@@ -174,6 +190,10 @@ export function WeekPlanner({
       <ul className="flex flex-col gap-3">
         {days.map(({ date, label }) => {
           const open = toggled[date] ?? date === today;
+          const dayMeals = mealsOf(date);
+          const dayAway =
+            dayMeals.length > 0 && dayMeals.every((meal) => awayKeys.has(slotKey(date, meal)));
+          const dayHasRecipes = dayMeals.some((meal) => bySlot.has(slotKey(date, meal)));
           return (
             <li
               key={date}
@@ -196,6 +216,11 @@ export function WeekPlanner({
                       {label}
                     </h2>
                     {date === today && <Badge>Hoy</Badge>}
+                    {dayAway && (
+                      <Badge variant="outline" className="gap-1">
+                        <MapPin className="size-3" aria-hidden /> Fuera de casa
+                      </Badge>
+                    )}
                   </span>
                 </div>
                 <ChevronDown
@@ -225,7 +250,23 @@ export function WeekPlanner({
                           })()}
                           {MEAL_LABELS[meal]}
                         </span>
-                        {item?.recipe ? (
+                        {awayKeys.has(slotKey(date, meal)) ? (
+                          <>
+                            <span className="flex flex-1 items-center gap-2 text-muted-foreground">
+                              <MapPin className="size-4" aria-hidden /> Fuera de casa
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={pending}
+                              onClick={() => run(() => clearSlot(slotInput(slot)))}
+                              aria-label={`Quitar «fuera de casa» de la ${MEAL_LABELS[meal].toLowerCase()}`}
+                            >
+                              <X />
+                            </Button>
+                          </>
+                        ) : item?.recipe ? (
                           <>
                             <div className="flex min-w-0 flex-1 flex-col gap-1">
                               <button
@@ -322,6 +363,26 @@ export function WeekPlanner({
                       </div>
                     );
                   })}
+                  <div className="pt-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={pending}
+                      onClick={() => {
+                        if (
+                          !dayAway &&
+                          dayHasRecipes &&
+                          !window.confirm("Se quitarán las recetas de este día. ¿Seguir?")
+                        ) {
+                          return;
+                        }
+                        run(() => setDayAway({ weekStart, date, away: !dayAway }));
+                      }}
+                    >
+                      <MapPin /> {dayAway ? "Volver a casa todo el día" : "Todo el día fuera de casa"}
+                    </Button>
+                  </div>
                 </div>
               )}
             </li>
@@ -351,6 +412,11 @@ export function WeekPlanner({
           onRegenerate={() =>
             run(() => regenerateSlot(slotInput(picker)), {
               success: "Receta propuesta",
+              closePicker: true,
+            })
+          }
+          onAway={() =>
+            run(() => setSlotAway({ slot: slotInput(picker), away: true }), {
               closePicker: true,
             })
           }

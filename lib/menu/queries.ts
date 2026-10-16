@@ -8,6 +8,8 @@ export type MenuItemView = {
   date: string;
   meal: Meal;
   servings: number;
+  /** Marked "fuera de casa": no recipe, and the AI skips it. */
+  away: boolean;
   recipe: { id: string; title: string; tags: string[] } | null;
 };
 
@@ -27,7 +29,7 @@ export async function getWeekItems(weekStart: string): Promise<MenuItemView[]> {
   // One round trip: "!inner" filters the items by their menu's week.
   const { data, error } = await supabase
     .from("menu_items")
-    .select("id, date, meal, servings, recipes(id, title, tags), menus!inner(week_start)")
+    .select("id, date, meal, servings, away, recipes(id, title, tags), menus!inner(week_start)")
     .eq("menus.week_start", weekStart)
     .order("date");
   if (error) throw new Error("No se pudo cargar el menú.");
@@ -38,6 +40,7 @@ export async function getWeekItems(weekStart: string): Promise<MenuItemView[]> {
       date: row.date,
       meal: row.meal,
       servings: row.servings,
+      away: row.away,
       // A to-one join comes back as an object (typed as a list without a schema).
       recipe: (Array.isArray(row.recipes) ? row.recipes[0] : row.recipes) ?? null,
     }),

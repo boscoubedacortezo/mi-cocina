@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Loader2, MapPin, Search, Sparkles, Trash2, X } from "lucide-react";
 import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ export function SlotPicker({
   pending,
   onSelect,
   onRegenerate,
+  onAway,
   onClear,
   onClose,
 }: {
@@ -32,6 +33,8 @@ export function SlotPicker({
   pending: boolean;
   onSelect: (recipeId: string) => void;
   onRegenerate: () => void;
+  /** Marks this slot "fuera de casa": no recipe, nothing generated. */
+  onAway: () => void;
   onClear: () => void;
   onClose: () => void;
 }) {
@@ -98,6 +101,9 @@ export function SlotPicker({
         >
           {pending && busy === "ai" ? <Loader2 className="animate-spin" /> : <Sparkles />}
           {pending && busy === "ai" ? "Pensando… (hasta un minuto)" : "Sugerir con IA"}
+        </Button>
+        <Button type="button" variant="outline" onClick={onAway} disabled={pending}>
+          <MapPin /> Fuera de casa
         </Button>
 
         <p className="text-xs text-muted-foreground">
