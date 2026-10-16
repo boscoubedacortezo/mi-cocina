@@ -1,11 +1,10 @@
-import { ChefHat } from "lucide-react";
-import { EQUIPMENT_ICONS } from "@/components/equipment-icons";
+import { EQUIPMENT_ICONS, ThermomixIcon } from "@/components/equipment-icons";
 import { EQUIPMENT_LABELS, type Equipment } from "@/lib/recipes/constants";
 import { cn } from "@/lib/utils";
 
 /**
  * How a recipe is cooked. The Thermomix (derived, not stored: own version or Cookidoo)
- * shows as a green chef hat; the traditional way (stored equipment) as grey chips.
+ * shows as the green Thermomix icon; the traditional way (stored equipment) as grey chips.
  * "icons" is the compact form for cards; "labels" adds the names (recipe page).
  */
 export function EquipmentChips({
@@ -35,7 +34,7 @@ export function EquipmentChips({
             labels ? "px-1.5 text-xs" : "w-6",
           )}
         >
-          <ChefHat className="size-4" aria-hidden />
+          <ThermomixIcon className="size-4" aria-hidden />
           {labels ? "Thermomix" : <span className="sr-only">Thermomix</span>}
         </li>
       )}

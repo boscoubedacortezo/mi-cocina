@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ChefHat, Clock, ExternalLink, Pencil } from "lucide-react";
+import { ArrowLeft, Clock, ExternalLink, Pencil } from "lucide-react";
+import { ThermomixIcon } from "@/components/equipment-icons";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { EquipmentChips } from "@/components/equipment-chips";
@@ -112,7 +113,7 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
             rel="noopener noreferrer"
             className={buttonVariants({ size: "lg" })}
           >
-            <ChefHat /> Abrir en Cookidoo
+            <ThermomixIcon /> Abrir en Cookidoo
           </a>
         ) : (
           // Converting needs the recipe's steps.
@@ -121,7 +122,7 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
               href={`/recetas/${recipe.id}/thermomix`}
               className={buttonVariants({ size: "lg" })}
             >
-              <ChefHat /> {hasTm7 ? "Ver versión Thermomix" : "Convertir a Thermomix"}
+              <ThermomixIcon /> {hasTm7 ? "Ver versión Thermomix" : "Convertir a Thermomix"}
             </Link>
           )
         )}
