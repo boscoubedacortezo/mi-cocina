@@ -14,7 +14,7 @@ import {
   isCookidooUrl,
   normalizeRecipeUrl,
 } from "@/lib/recipes/cookidoo-url";
-import { SOCIAL_LABELS, socialPlatform } from "@/lib/recipes/social-url";
+import { SOCIAL_LABELS, normalizeSocialUrl, socialPlatform } from "@/lib/recipes/social-url";
 import type { RecipeDraft } from "@/lib/recipes/draft";
 
 export type ImportResult =
@@ -127,7 +127,7 @@ export async function importFromUrl(input: unknown, transcript?: unknown): Promi
   const social = socialPlatform(link);
   if (isCookidooUrl(link) || social) {
     try {
-      const known = await existing(normalizeRecipeUrl(link));
+      const known = await existing(social ? normalizeSocialUrl(link) : normalizeRecipeUrl(link));
       if (known) return duplicateResult(known);
     } catch {
       // Not a valid link: loadWebSource will say so.
@@ -156,8 +156,11 @@ export async function importFromUrl(input: unknown, transcript?: unknown): Promi
     const fromCookidoo = isCookidooUrl(source.finalUrl);
     const fromSocial = source.kind === "social";
     // Cookidoo and social posts keep the recipe in the path; the query string is only share trackers.
-    const sourceUrl =
-      fromCookidoo || fromSocial ? normalizeRecipeUrl(source.finalUrl) : source.finalUrl;
+    const sourceUrl = fromSocial
+      ? normalizeSocialUrl(source.finalUrl)
+      : fromCookidoo
+        ? normalizeRecipeUrl(source.finalUrl)
+        : source.finalUrl;
     if (fromCookidoo || fromSocial) {
       const known = await existing(sourceUrl);
       if (known) throw new DuplicateRecipe(known);

@@ -292,7 +292,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
           <p className="text-sm text-muted-foreground">
             Sirve también para recetas de Cookidoo (con foto, ingredientes y
             tiempos; los pasos los tienes allí) y para publicaciones de
-            Instagram y TikTok que traen la receta escrita. Si la receta se
+            Instagram, TikTok y YouTube que traen la receta escrita. Si la receta se
             explica hablando en el vídeo, usa la pestaña Vídeo. Algunas webs
             bloquean la descarga; si falla, pega el texto de la receta.
           </p>

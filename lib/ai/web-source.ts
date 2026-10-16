@@ -161,8 +161,31 @@ function tiktokCaption($: cheerio.CheerioAPI) {
   }
 }
 
-function socialSource(platform: SocialPlatform, $: cheerio.CheerioAPI, finalUrl: string): WebSource {
-  const { caption, author } = platform === "instagram" ? instagramCaption($) : tiktokCaption($);
+/** YouTube keeps the description of the video in the JSON of its page. */
+function youtubeCaption($: cheerio.CheerioAPI, html: string) {
+  const description = html.match(/"shortDescription":"((?:[^"\\]|\\.)*)"/)?.[1];
+  let caption = "";
+  try {
+    caption = description ? (JSON.parse(`"${description}"`) as string).trim() : "";
+  } catch {
+    // Keep it empty: the caller says the text could not be read.
+  }
+  const title = $('meta[property="og:title"]').attr("content")?.trim() ?? "";
+  return { caption: title && caption ? `${title}\n${caption}` : caption, author: null };
+}
+
+function socialSource(
+  platform: SocialPlatform,
+  $: cheerio.CheerioAPI,
+  finalUrl: string,
+  html: string,
+): WebSource {
+  const { caption, author } =
+    platform === "instagram"
+      ? instagramCaption($)
+      : platform === "tiktok"
+        ? tiktokCaption($)
+        : youtubeCaption($, html);
   if (caption.length < MIN_CAPTION_CHARS) {
     throw new ImportError(
       `No he podido leer el texto de esa publicación de ${SOCIAL_LABELS[platform]} (o no lo trae). Pega el texto de la receta o sube capturas de pantalla.`,
@@ -183,7 +206,7 @@ export async function loadWebSource(url: string): Promise<WebSource> {
   const $ = cheerio.load(html);
 
   const platform = socialPlatform(finalUrl);
-  if (platform) return socialSource(platform, $, finalUrl);
+  if (platform) return socialSource(platform, $, finalUrl, html);
 
   const found = extractJsonLdRecipe($);
   const imageUrl = resolveImage($, found?.image ?? null, finalUrl);
