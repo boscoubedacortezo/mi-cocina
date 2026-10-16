@@ -14,22 +14,33 @@ const recipe: CookidooRecipe = buildCookidooRecipe({
   ],
 });
 
-async function run(code: string, extra: Record<string, unknown>, failAt?: string) {
+async function run(code: string, extra: Record<string, unknown>, failAt?: string, cloudinaryFails = false) {
   const calls: string[] = [];
+  const patches: { url: string; body: Record<string, unknown> }[] = [];
   const alerts: string[] = [];
   const location = { hostname: "cookidoo.es", href: "" };
-  const fetchMock = async (url: string, init: { method: string; body: string }) => {
+  const fetchMock = async (url: string, init: { method: string; body: string | FormData }) => {
+    if (url.startsWith("https://api-eu.cloudinary.com/")) {
+      const form = init.body as FormData;
+      calls.push(`CLOUDINARY ${[...form.keys()].sort().join(",")}`);
+      if (cloudinaryFails) return { ok: false, status: 400, json: async () => ({}) };
+      return { ok: true, status: 200, json: async () => ({ public_id: "prod/img/customer-recipe/abc", format: "jpg" }) };
+    }
+    if (typeof init.body !== "string") throw new Error("unexpected body");
+    patches.push({ url, body: JSON.parse(init.body) });
     const key = `${init.method} ${url}`;
     calls.push(`${key} ${Object.keys(JSON.parse(init.body))[0]}`);
     const reject = failAt !== undefined && init.body.includes(failAt);
-    const body = init.method === "POST" ? { recipeId: "ID1" } : {};
+    const body = url.endsWith("/image/signature") ? { signature: "sig" } : init.method === "POST" ? { recipeId: "ID1" } : {};
     return { ok: !reject, status: reject ? 400 : 200, text: async () => JSON.stringify(body) };
   };
   const context = vm.createContext({
-    fetch: fetchMock, alert: (m: string) => alerts.push(m), console, location, JSON, ...extra,
+    fetch: fetchMock, alert: (m: string) => alerts.push(m), console, location, JSON, atob, Blob, FormData, Uint8Array, Math, Date, Boolean, String, Error,
+    createImageBitmap: async () => ({ width: 640, height: 480 }),
+    ...extra,
   });
   await vm.runInContext(code, context);
-  return { calls, alerts, href: location.href };
+  return { calls, alerts, href: location.href, patches };
 }
 
 let failed = 0;
@@ -63,6 +74,26 @@ async function main() {
 
   const failing = await run(buildRunnerScript(recipe), {}, "ingredients");
   expect("a rejected PATCH stops and says which", failing.alerts.length === 1 && failing.alerts[0].includes("ingredients") && failing.href === "", failing);
+
+  // The photo: signature from Cookidoo, upload to Cloudinary, then link it.
+  const photo = { data: Buffer.from("fake-jpeg-bytes").toString("base64"), type: "image/jpeg", owned: false };
+  const withPhoto = await run(buildRunnerScript({ ...recipe, photo }), {});
+  const link = withPhoto.patches.find((p) => "image" in p.body);
+  const signature = withPhoto.patches.find((p) => p.url.endsWith("/image/signature"));
+  expect("photo: sign, upload, link, then open the editor",
+    withPhoto.calls.slice(-3).join("|") ===
+      "POST /created-recipes/es-ES/image/signature timestamp|CLOUDINARY api_key,custom_coordinates,file,signature,source,timestamp,upload_preset|PATCH /created-recipes/es-ES/ID1 image" &&
+    withPhoto.href === "/created-recipes/es-ES/ID1/edit" && withPhoto.alerts.length === 0, withPhoto);
+  expect("photo: linked as in the editor", JSON.stringify(link?.body) === '{"image":"prod/img/customer-recipe/abc.jpg","isImageOwnedByUser":false}', link);
+  expect("photo: signature body as in the editor",
+    JSON.stringify(Object.keys(signature?.body ?? {})) === '["timestamp","source","custom_coordinates"]' && signature?.body.custom_coordinates === "0,0,640,480", signature);
+  const owned = await run(buildRunnerScript({ ...recipe, photo: { ...photo, owned: true } }), {});
+  expect("photo: owned flag is sent only when set", owned.patches.find((p) => "image" in p.body)?.body.isImageOwnedByUser === true);
+  const noPhoto = await run(buildRunnerScript(recipe), {});
+  expect("no photo: nothing about images is called", !noPhoto.calls.some((c) => c.includes("image") || c.startsWith("CLOUDINARY")));
+  const broken = await run(buildRunnerScript({ ...recipe, photo }), {}, undefined, true);
+  expect("photo failure: recipe stays, user is told, editor still opens",
+    broken.alerts.length === 1 && broken.alerts[0].includes("foto") && broken.href === "/created-recipes/es-ES/ID1/edit", broken);
 
   // The icons must survive: the serialised text has no raw private-use character.
   expect("serialised recipe is ASCII", /^[\x20-\x7e]*$/.test(serializeRecipe(recipe)));

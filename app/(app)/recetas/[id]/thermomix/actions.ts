@@ -9,6 +9,7 @@ import { contentSignature } from "@/lib/recipes/auto-meta";
 import { getRecipe } from "@/lib/recipes/queries";
 import { buildCookidooText } from "@/lib/thermomix/cookidoo";
 import { thermomixInputSchema } from "@/lib/thermomix/schema";
+import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
 
 export type TmResult =
   | { ok: true; notes: string | null }
@@ -134,4 +135,40 @@ export async function deleteThermomixVersion(recipeId: unknown): Promise<TmResul
   refresh(id.data);
   revalidatePath("/recetas");
   return { ok: true, notes: null };
+}
+
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
+
+export type PhotoResult =
+  | { ok: true; data: string; type: string; kb: number }
+  | { ok: false; error: string };
+
+/** The recipe's photo as base64, to travel with the recipe sent to Cookidoo. */
+export async function getRecipePhoto(recipeId: unknown): Promise<PhotoResult> {
+  const { supabase } = await requireUser();
+  const id = idSchema.safeParse(recipeId);
+  if (!id.success) return { ok: false, error: "Receta no válida." };
+
+  const { data: recipe } = await supabase
+    .from("recipes")
+    .select("image_path")
+    .eq("id", id.data)
+    .maybeSingle();
+  if (!recipe?.image_path) return { ok: false, error: "La receta no tiene foto." };
+
+  const { data: file, error } = await supabase.storage
+    .from(RECIPE_IMAGES_BUCKET)
+    .download(recipe.image_path);
+  if (error || !file) return { ok: false, error: "No se pudo leer la foto." };
+  if (file.size > MAX_PHOTO_BYTES) return { ok: false, error: "La foto pesa demasiado (máximo 4 MB)." };
+  const type = file.type || "image/jpeg";
+  if (!/^image\/(jpeg|png|webp)$/.test(type)) {
+    return { ok: false, error: "Formato de foto no compatible." };
+  }
+  return {
+    ok: true,
+    data: Buffer.from(await file.arrayBuffer()).toString("base64"),
+    type,
+    kb: Math.round(file.size / 1024),
+  };
 }

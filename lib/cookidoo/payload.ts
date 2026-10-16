@@ -198,4 +198,14 @@ export function buildCookidooRecipe(input: CookidooRecipeInput) {
   };
 }
 
-export type CookidooRecipe = ReturnType<typeof buildCookidooRecipe>;
+/** The photo travels inside the copied recipe: base64 of the stored image. */
+export type CookidooPhoto = {
+  data: string;
+  type: string;
+  /** Sent as `isImageOwnedByUser`: false unless the user says the photo is theirs. */
+  owned: boolean;
+};
+
+export type CookidooRecipe = ReturnType<typeof buildCookidooRecipe> & {
+  photo?: CookidooPhoto | null;
+};

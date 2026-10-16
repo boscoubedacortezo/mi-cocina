@@ -6,7 +6,13 @@ import type { CookidooRecipe } from "./payload";
  * by themselves; nothing leaves the browser except the calls to Cookidoo.
  */
 
-/** Body shared by the console script and the bookmarklet. Expects `recipe` in scope. */
+/**
+ * Body shared by the console script and the bookmarklet. Expects `recipe` in scope.
+ *
+ * It must hold no `//` comments: the bookmarklet is squeezed into one line. The photo goes to
+ * Cloudinary (Cookidoo's image service) with a signature Cookidoo gives, then gets linked to
+ * the recipe; if that fails the recipe stays done, only without its photo.
+ */
 const CORE = `
   const fail = (message) => { console.error(message); alert(message); };
   const base = "/created-recipes/es-ES";
@@ -32,6 +38,37 @@ const CORE = `
   for (const patch of recipe.optionalPatches) {
     await call("PATCH", base + "/" + id, patch);
   }
+  let photoNote = "";
+  if (recipe.photo) {
+    try {
+      const bytes = Uint8Array.from(atob(recipe.photo.data), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: recipe.photo.type });
+      const bitmap = await createImageBitmap(blob);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const sign = { timestamp, source: "uw", custom_coordinates: "0,0," + bitmap.width + "," + bitmap.height };
+      const signed = await call("POST", base + "/image/signature", sign);
+      if (!signed.ok || !signed.data || !signed.data.signature) throw new Error("Cookidoo no dio la firma (" + signed.status + ")");
+      const form = new FormData();
+      form.append("upload_preset", "prod-customer-recipe-signed");
+      form.append("source", sign.source);
+      form.append("signature", signed.data.signature);
+      form.append("timestamp", String(timestamp));
+      form.append("api_key", "993585863591145");
+      form.append("custom_coordinates", sign.custom_coordinates);
+      form.append("file", blob, "receta." + recipe.photo.type.split("/")[1]);
+      const upload = await fetch("https://api-eu.cloudinary.com/v1_1/vorwerk-users-gc/image/upload", { method: "POST", body: form });
+      const uploaded = await upload.json();
+      if (!upload.ok || !uploaded.public_id) throw new Error("el servicio de imágenes la rechazó (" + upload.status + ")");
+      const linked = await call("PATCH", base + "/" + id, {
+        image: uploaded.public_id + "." + uploaded.format,
+        isImageOwnedByUser: Boolean(recipe.photo.owned),
+      });
+      if (!linked.ok) throw new Error("Cookidoo no la aceptó (" + linked.status + ")");
+    } catch (e) {
+      photoNote = "La receta está creada, pero la foto no se ha podido subir: " + (e && e.message ? e.message : e);
+    }
+  }
+  if (photoNote) fail(photoNote);
   location.href = base + "/" + id + "/edit";
 `;
 

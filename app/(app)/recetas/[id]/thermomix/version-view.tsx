@@ -31,6 +31,7 @@ export function VersionView({
   prepMinutes,
   totalMinutes,
   cookidooPayload,
+  hasPhoto,
 }: {
   recipeId: string;
   version: VersionData;
@@ -38,6 +39,8 @@ export function VersionView({
   totalMinutes: number | null;
   /** The recipe in the shape Cookidoo's editor takes, as copied for the bookmarklet. */
   cookidooPayload: string;
+  /** The recipe has a photo that can travel to Cookidoo. */
+  hasPhoto: boolean;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -92,7 +95,7 @@ export function VersionView({
             <Pencil /> Editar
           </Button>
         </div>
-        <SendToCookidoo payload={cookidooPayload} />
+        <SendToCookidoo payload={cookidooPayload} recipeId={recipeId} hasPhoto={hasPhoto} />
         <p className="text-xs text-muted-foreground">
           En la app de Cookidoo cada ingrediente y cada paso se escriben por separado: la guía paso a paso te deja copiarlos uno a uno.
         </p>

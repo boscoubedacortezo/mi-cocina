@@ -72,6 +72,7 @@ export default async function ThermomixPage({
             version={{ ...version, servings: version.servings ?? recipe.servings }}
             prepMinutes={recipe.prep_minutes}
             totalMinutes={resolveTotalMinutes(recipe.prep_minutes, recipe.cook_minutes, version.steps)}
+            hasPhoto={Boolean(recipe.image_path)}
             cookidooPayload={serializeRecipe(
               buildCookidooRecipe({
                 title: recipe.title,

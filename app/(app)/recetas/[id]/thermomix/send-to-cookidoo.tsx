@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bookmark, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { buildBookmarklet } from "@/lib/cookidoo/runner";
+import { buildBookmarklet, serializeRecipe } from "@/lib/cookidoo/runner";
+import { toast } from "sonner";
+import { getRecipePhoto } from "./actions";
 import { copyText } from "@/lib/clipboard";
 
 /** The bookmarklet's href is set after mount: React refuses `javascript:` URLs in markup. */
@@ -26,7 +28,45 @@ function BookmarkletLink() {
 }
 
 /** Experimental, unofficial: sends the recipe through the user's own Cookidoo tab. */
-export function SendToCookidoo({ payload }: { payload: string }) {
+export function SendToCookidoo({
+  payload,
+  recipeId,
+  hasPhoto,
+}: {
+  payload: string;
+  recipeId: string;
+  hasPhoto: boolean;
+}) {
+  // The photo is read when the switch is turned on, so copying is instant afterwards
+  // (the browser only lets a copy happen right inside the tap).
+  const [withPhoto, setWithPhoto] = useState(false);
+  const [owned, setOwned] = useState(false);
+  const [photo, setPhoto] = useState<{ data: string; type: string; kb: number } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function togglePhoto(on: boolean) {
+    setWithPhoto(on);
+    if (!on) return;
+    if (photo) return;
+    setLoading(true);
+    const result = await getRecipePhoto(recipeId);
+    setLoading(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      setWithPhoto(false);
+      return;
+    }
+    setPhoto({ data: result.data, type: result.type, kb: result.kb });
+  }
+
+  const recipeText = () =>
+    withPhoto && photo
+      ? serializeRecipe({
+          ...JSON.parse(payload),
+          photo: { data: photo.data, type: photo.type, owned },
+        })
+      : payload;
+
   return (
     <details className="rounded-xl border p-3">
       <summary className="cursor-pointer text-sm font-medium">
@@ -46,11 +86,34 @@ export function SendToCookidoo({ payload }: { payload: string }) {
           </li>
           <li>
             <strong>Cada receta:</strong> copia esta receta aquí.
+            {hasPhoto && (
+              <div className="mt-2 flex flex-col gap-1.5 rounded-lg border p-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={withPhoto}
+                    disabled={loading}
+                    onChange={(e) => togglePhoto(e.target.checked)}
+                  />
+                  <span>
+                    Incluir la foto de la receta
+                    {loading && " (leyendo…)"}
+                    {withPhoto && photo && ` (${photo.kb} KB)`}
+                  </span>
+                </label>
+                {withPhoto && (
+                  <label className="flex items-center gap-2 pl-6 text-xs text-muted-foreground">
+                    <input type="checkbox" checked={owned} onChange={(e) => setOwned(e.target.checked)} />
+                    La foto es mía (si no, se marca en Cookidoo como de otra persona)
+                  </label>
+                )}
+              </div>
+            )}
             <div className="mt-2 flex flex-wrap gap-2">
               <Button
                 type="button"
                 size="sm"
-                onClick={() => copyText(payload, "Receta para Cookidoo")}
+                onClick={() => copyText(recipeText(), "Receta para Cookidoo")}
               >
                 <Send /> Copiar para enviar
               </Button>
