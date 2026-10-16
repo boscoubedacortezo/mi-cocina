@@ -13,6 +13,7 @@ import {
   stepSettings,
 } from "@/lib/thermomix/cookidoo";
 import type { ThermomixStep } from "@/lib/thermomix/schema";
+import { SendToCookidoo } from "./send-to-cookidoo";
 import { VersionEditor } from "./version-editor";
 
 export type VersionData = {
@@ -29,11 +30,14 @@ export function VersionView({
   version,
   prepMinutes,
   totalMinutes,
+  cookidooPayload,
 }: {
   recipeId: string;
   version: VersionData;
   prepMinutes: number | null;
   totalMinutes: number | null;
+  /** The recipe in the shape Cookidoo's editor takes, as copied for the bookmarklet. */
+  cookidooPayload: string;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -88,6 +92,7 @@ export function VersionView({
             <Pencil /> Editar
           </Button>
         </div>
+        <SendToCookidoo payload={cookidooPayload} />
         <p className="text-xs text-muted-foreground">
           En la app de Cookidoo cada ingrediente y cada paso se escriben por separado: la guía paso a paso te deja copiarlos uno a uno.
         </p>

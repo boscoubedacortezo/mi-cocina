@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { buildCookidooRecipe } from "@/lib/cookidoo/payload";
+import { serializeRecipe } from "@/lib/cookidoo/runner";
 import { contentSignature } from "@/lib/recipes/auto-meta";
 import { getRecipe } from "@/lib/recipes/queries";
 import { resolveTotalMinutes } from "@/lib/thermomix/cookidoo";
@@ -70,6 +72,16 @@ export default async function ThermomixPage({
             version={{ ...version, servings: version.servings ?? recipe.servings }}
             prepMinutes={recipe.prep_minutes}
             totalMinutes={resolveTotalMinutes(recipe.prep_minutes, recipe.cook_minutes, version.steps)}
+            cookidooPayload={serializeRecipe(
+              buildCookidooRecipe({
+                title: recipe.title,
+                servings: version.servings ?? recipe.servings,
+                prepMinutes: recipe.prep_minutes,
+                totalMinutes: resolveTotalMinutes(recipe.prep_minutes, recipe.cook_minutes, version.steps),
+                ingredientsText: version.ingredients_text,
+                steps: version.steps,
+              }),
+            )}
           />
           <details open={outdated || legacy} className="rounded-xl border p-4">
             <summary className="cursor-pointer text-sm font-medium">
