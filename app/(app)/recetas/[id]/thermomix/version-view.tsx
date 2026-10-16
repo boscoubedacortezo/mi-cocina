@@ -32,6 +32,7 @@ export function VersionView({
   totalMinutes,
   cookidooPayload,
   hasPhoto,
+  photoOwned,
 }: {
   recipeId: string;
   version: VersionData;
@@ -41,6 +42,7 @@ export function VersionView({
   cookidooPayload: string;
   /** The recipe has a photo that can travel to Cookidoo. */
   hasPhoto: boolean;
+  photoOwned: boolean;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -95,7 +97,12 @@ export function VersionView({
             <Pencil /> Editar
           </Button>
         </div>
-        <SendToCookidoo payload={cookidooPayload} recipeId={recipeId} hasPhoto={hasPhoto} />
+        <SendToCookidoo
+          payload={cookidooPayload}
+          recipeId={recipeId}
+          hasPhoto={hasPhoto}
+          photoOwned={photoOwned}
+        />
         <p className="text-xs text-muted-foreground">
           En la app de Cookidoo cada ingrediente y cada paso se escriben por separado: la guía paso a paso te deja copiarlos uno a uno.
         </p>

@@ -47,7 +47,7 @@ const CORE = `
       const timestamp = Math.floor(Date.now() / 1000);
       const sign = { timestamp, source: "uw", custom_coordinates: "0,0," + bitmap.width + "," + bitmap.height };
       const signed = await call("POST", base + "/image/signature", sign);
-      if (!signed.ok || !signed.data || !signed.data.signature) throw new Error("Cookidoo no dio la firma (" + signed.status + ")");
+      if (!signed.ok || !signed.data || !signed.data.signature) throw new Error("Cookidoo no dio la firma (" + signed.status + "): " + signed.text.slice(0, 160));
       const form = new FormData();
       form.append("upload_preset", "prod-customer-recipe-signed");
       form.append("source", sign.source);
@@ -57,13 +57,15 @@ const CORE = `
       form.append("custom_coordinates", sign.custom_coordinates);
       form.append("file", blob, "receta." + recipe.photo.type.split("/")[1]);
       const upload = await fetch("https://api-eu.cloudinary.com/v1_1/vorwerk-users-gc/image/upload", { method: "POST", body: form });
-      const uploaded = await upload.json();
-      if (!upload.ok || !uploaded.public_id) throw new Error("el servicio de imágenes la rechazó (" + upload.status + ")");
+      const uploaded = await upload.json().catch(() => ({}));
+      console.log("Cloudinary", upload.status, JSON.stringify(uploaded).slice(0, 300));
+      if (!upload.ok || !uploaded.public_id) throw new Error("el servicio de imágenes la rechazó (" + upload.status + "): " + ((uploaded.error && uploaded.error.message) || ""));
       const linked = await call("PATCH", base + "/" + id, {
         image: uploaded.public_id + "." + uploaded.format,
         isImageOwnedByUser: Boolean(recipe.photo.owned),
       });
-      if (!linked.ok) throw new Error("Cookidoo no la aceptó (" + linked.status + ")");
+      console.log("Foto enlazada", linked.status, linked.text.slice(0, 200));
+      if (!linked.ok) throw new Error("Cookidoo no la aceptó (" + linked.status + "): " + linked.text.slice(0, 160));
     } catch (e) {
       photoNote = "La receta está creada, pero la foto no se ha podido subir: " + (e && e.message ? e.message : e);
     }

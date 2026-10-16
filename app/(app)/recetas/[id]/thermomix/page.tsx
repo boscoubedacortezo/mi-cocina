@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { buildCookidooRecipe } from "@/lib/cookidoo/payload";
 import { serializeRecipe } from "@/lib/cookidoo/runner";
+import { socialPlatform } from "@/lib/recipes/social-url";
 import { contentSignature } from "@/lib/recipes/auto-meta";
 import { getRecipe } from "@/lib/recipes/queries";
 import { resolveTotalMinutes } from "@/lib/thermomix/cookidoo";
@@ -73,6 +74,7 @@ export default async function ThermomixPage({
             prepMinutes={recipe.prep_minutes}
             totalMinutes={resolveTotalMinutes(recipe.prep_minutes, recipe.cook_minutes, version.steps)}
             hasPhoto={Boolean(recipe.image_path)}
+            photoOwned={!socialPlatform(recipe.source_url)}
             cookidooPayload={serializeRecipe(
               buildCookidooRecipe({
                 title: recipe.title,

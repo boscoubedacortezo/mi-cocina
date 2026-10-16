@@ -32,87 +32,83 @@ export function SendToCookidoo({
   payload,
   recipeId,
   hasPhoto,
+  photoOwned,
 }: {
   payload: string;
   recipeId: string;
   hasPhoto: boolean;
+  /** False for covers taken from someone else's video: they go marked as not the user's. */
+  photoOwned: boolean;
 }) {
-  // The photo is read when the switch is turned on, so copying is instant afterwards
+  // The photo is read as soon as the section is open, so copying is instant afterwards
   // (the browser only lets a copy happen right inside the tap).
-  const [withPhoto, setWithPhoto] = useState(false);
-  const [owned, setOwned] = useState(false);
-  const [photo, setPhoto] = useState<{ data: string; type: string; kb: number } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [photo, setPhoto] = useState<{
+    data: string;
+    type: string;
+    kb: number;
+  } | null>(null);
+  const [photoState, setPhotoState] = useState<
+    "idle" | "loading" | "ready" | "failed"
+  >("idle");
 
-  async function togglePhoto(on: boolean) {
-    setWithPhoto(on);
-    if (!on) return;
-    if (photo) return;
-    setLoading(true);
+  async function loadPhoto() {
+    if (!hasPhoto || photoState !== "idle") return;
+    setPhotoState("loading");
     const result = await getRecipePhoto(recipeId);
-    setLoading(false);
     if (!result.ok) {
-      toast.error(result.error);
-      setWithPhoto(false);
+      toast.error(`La foto no se incluirá: ${result.error}`);
+      setPhotoState("failed");
       return;
     }
     setPhoto({ data: result.data, type: result.type, kb: result.kb });
+    setPhotoState("ready");
   }
 
   const recipeText = () =>
-    withPhoto && photo
+    photo
       ? serializeRecipe({
           ...JSON.parse(payload),
-          photo: { data: photo.data, type: photo.type, owned },
+          photo: { data: photo.data, type: photo.type, owned: photoOwned },
         })
       : payload;
 
   return (
-    <details className="rounded-xl border p-3">
+    <details
+      className="rounded-xl border p-3"
+      onToggle={(e) => e.currentTarget.open && loadPhoto()}
+    >
       <summary className="cursor-pointer text-sm font-medium">
         Enviar a Cookidoo automáticamente (experimental)
       </summary>
       <div className="mt-3 flex flex-col gap-3 text-sm">
         <ol className="flex list-decimal flex-col gap-2 pl-5">
           <li>
-            <strong>Una sola vez:</strong> arrastra este botón a tu barra de marcadores.
+            <strong>Una sola vez:</strong> arrastra este botón a tu barra de
+            marcadores.
             <div className="mt-2">
               <BookmarkletLink />
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Si no puedes arrastrarlo, crea un marcador a mano y pega como dirección el
-              código que copia el botón de abajo.
+              Si no puedes arrastrarlo, crea un marcador a mano y pega como
+              dirección el código que copia el botón de abajo.
             </p>
           </li>
           <li>
             <strong>Cada receta:</strong> copia esta receta aquí.
             {hasPhoto && (
-              <div className="mt-2 flex flex-col gap-1.5 rounded-lg border p-2">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={withPhoto}
-                    disabled={loading}
-                    onChange={(e) => togglePhoto(e.target.checked)}
-                  />
-                  <span>
-                    Incluir la foto de la receta
-                    {loading && " (leyendo…)"}
-                    {withPhoto && photo && ` (${photo.kb} KB)`}
-                  </span>
-                </label>
-                {withPhoto && (
-                  <label className="flex items-center gap-2 pl-6 text-xs text-muted-foreground">
-                    <input type="checkbox" checked={owned} onChange={(e) => setOwned(e.target.checked)} />
-                    La foto es mía (si no, se marca en Cookidoo como de otra persona)
-                  </label>
-                )}
-              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {photoState === "loading" && "Preparando la foto…"}
+                {photoState === "ready" &&
+                  photo &&
+                  `Se enviará también la foto de la receta (${photo.kb} KB).`}
+                {photoState === "failed" && "La foto no se enviará."}
+              </p>
             )}
             <div className="mt-2 flex flex-wrap gap-2">
               <Button
                 type="button"
                 size="sm"
+                disabled={photoState === "loading"}
                 onClick={() => copyText(recipeText(), "Receta para Cookidoo")}
               >
                 <Send /> Copiar para enviar
@@ -121,20 +117,23 @@ export function SendToCookidoo({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => copyText(buildBookmarklet(), "Código del marcador")}
+                onClick={() =>
+                  copyText(buildBookmarklet(), "Código del marcador")
+                }
               >
                 Copiar el marcador
               </Button>
             </div>
           </li>
           <li>
-            Abre <strong>cookidoo.es</strong> con tu sesión y pulsa el marcador. La receta se
-            crea en «Creadas por mí» y se abre para que la revises.
+            Abre <strong>cookidoo.es</strong> con tu sesión y pulsa el marcador.
+            La receta se crea en «Creadas por mí» y se abre para que la revises.
           </li>
         </ol>
         <p className="text-xs text-muted-foreground">
-          Es una vía no oficial: Cookidoo puede cambiarla y dejar de funcionar. Todo ocurre
-          en tu navegador con tu sesión; Mi Cocina no guarda ni conoce tus credenciales.
+          Es una vía no oficial: Cookidoo puede cambiarla y dejar de funcionar.
+          Todo ocurre en tu navegador con tu sesión; Mi Cocina no guarda ni
+          conoce tus credenciales.
         </p>
       </div>
     </details>
