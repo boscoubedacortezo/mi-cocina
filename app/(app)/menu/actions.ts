@@ -2,28 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { toRecipeDraft } from "@/lib/ai/draft";
 import { ImportError } from "@/lib/ai/errors";
-import { extractRecipe } from "@/lib/ai/extract-recipe";
 import { planMenu } from "@/lib/ai/plan-menu";
-import { loadWebSource } from "@/lib/ai/web-source";
 import { requireUser } from "@/lib/auth-server";
 import { ensureMenu } from "@/lib/menu/ensure";
 import { addDays, weekDates } from "@/lib/menu/dates";
 import { listRecipesForPlanning } from "@/lib/menu/queries";
 import { getMenuPreferences } from "@/lib/settings/queries";
-import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
-import {
-  extractCookidooUrl,
-  isCookidooImageHost,
-  isCookidooUrl,
-  normalizeRecipeUrl,
-} from "@/lib/recipes/cookidoo-url";
-import { recipeInputSchema } from "@/lib/recipes/schema";
-import { autoFillMeta, insertRecipe, saveImageFromUrl } from "@/lib/recipes/save";
 import {
   MEALS,
-  servingsSchema,
   setSlotSchema,
   slotKey,
   slotSchema,
@@ -68,123 +55,6 @@ export async function setSlot(input: unknown): Promise<MenuResult> {
 
   revalidatePath("/menu");
   return done();
-}
-
-const cookidooSchema = z.object({
-  slot: slotSchema,
-  // What Cookidoo's "share" produces is a sentence with the link inside: keep only the link.
-  url: z
-    .string()
-    .max(4000)
-    .transform(extractCookidooUrl)
-    .refine(isCookidooUrl, "No encuentro un enlace de Cookidoo en lo que has pegado."),
-  servings: servingsSchema,
-});
-
-/**
- * Adds a Cookidoo recipe to the library from its public link and puts it in a
- * slot, saved directly with no review step. The public page has the title,
- * servings, times and ingredients (the steps need a Cookidoo login), which is
- * what the menu and the shopping list need.
- */
-export async function addCookidooRecipe(input: unknown): Promise<MenuResult> {
-  const { supabase, userId } = await requireUser();
-  const parsed = cookidooSchema.safeParse(input);
-  if (!parsed.success) return fail(parsed.error.issues[0].message);
-  const { slot, url, servings } = parsed.data;
-
-  const existing = async (key: string) => {
-    const { data } = await supabase
-      .from("recipes")
-      .select("id, title, image_path")
-      .eq("source_url", key)
-      .limit(1);
-    return data?.[0] as { id: string; title: string; image_path: string | null } | undefined;
-  };
-
-  /** Recipes imported before photos were saved get theirs when the link is added again. */
-  const addMissingPhoto = async (recipeId: string, imageUrl: string | null) => {
-    if (!imageUrl) return "la página de Cookidoo no incluye foto";
-    const saved = await saveImageFromUrl(supabase, userId, imageUrl, isCookidooImageHost);
-    if ("error" in saved) return saved.error;
-    const { error } = await supabase.from("recipes").update({ image_path: saved.path }).eq("id", recipeId);
-    return error ? `No se pudo asociar la foto (${error.message}).` : null;
-  };
-
-  const reuseExisting = async (recipe: { id: string; title: string; image_path: string | null }) => {
-    let photoProblem: string | null = null;
-    if (!recipe.image_path) {
-      try {
-        photoProblem = await addMissingPhoto(recipe.id, (await loadWebSource(url)).imageUrl);
-      } catch (error) {
-        photoProblem = error instanceof Error ? error.message : "no se pudo leer la página";
-      }
-    }
-    if (!(await assignSlot(supabase, slot, recipe.id, servings))) return fail(GENERIC_ERROR);
-    revalidatePath("/menu");
-    revalidatePath("/recetas");
-    return done(
-      `«${recipe.title}» ya estaba en tu recetario.` +
-        (recipe.image_path ? "" : photoProblem ? ` Sin foto: ${photoProblem}` : " Foto añadida."),
-    );
-  };
-
-  try {
-    // Already in the library: reuse it instead of importing (and paying for the AI) again.
-    const known = await existing(normalizeRecipeUrl(url));
-    if (known) return await reuseExisting(known);
-
-    const source = await loadWebSource(url);
-    // Without the recipe markup the page is just text around a login: nothing reliable to import.
-    if (source.kind !== "json-ld") {
-      return fail("No se pudo leer esa receta. ¿Es el enlace de una receta de Cookidoo?");
-    }
-    const finalKey = normalizeRecipeUrl(source.finalUrl);
-    const duplicate = finalKey !== normalizeRecipeUrl(url) ? await existing(finalKey) : undefined;
-    if (duplicate) return await reuseExisting(duplicate);
-
-    const ai = await extractRecipe({ kind: "text", text: source.text });
-    const draft = toRecipeDraft(ai, finalKey);
-    const recipe = recipeInputSchema.safeParse({
-      ...draft,
-      source_type: "url",
-      image_path: null,
-    });
-    if (!ai.is_recipe || draft.ingredients.length === 0 || !recipe.success) {
-      return fail("No se pudo leer esa receta. ¿Es el enlace de una receta de Cookidoo?");
-    }
-
-    // The photo is best effort; a recipe without it is still worth saving.
-    let imagePath: string | null = null;
-    let photoProblem: string | null = null;
-    if (source.imageUrl) {
-      const saved = await saveImageFromUrl(supabase, userId, source.imageUrl, isCookidooImageHost);
-      if ("path" in saved) imagePath = saved.path;
-      else photoProblem = saved.error;
-    } else {
-      photoProblem = "la página de Cookidoo no incluye foto";
-    }
-    const id = await insertRecipe(supabase, { ...recipe.data, image_path: imagePath });
-    if (!id) {
-      if (imagePath) await supabase.storage.from(RECIPE_IMAGES_BUCKET).remove([imagePath]);
-      return fail(GENERIC_ERROR);
-    }
-    const { ingredients, steps, ...meta } = recipe.data;
-    await autoFillMeta(supabase, id, meta, ingredients, steps, "missing");
-
-    if (!(await assignSlot(supabase, slot, id, servings))) return fail(GENERIC_ERROR);
-
-    revalidatePath("/menu");
-    revalidatePath("/recetas");
-    return done(
-      `«${recipe.data.title}» añadida a tu recetario y al menú.` +
-        (photoProblem ? ` Sin foto: ${photoProblem}` : ""),
-    );
-  } catch (error) {
-    if (error instanceof ImportError) return fail(error.message);
-    console.error("[menu] cookidoo import failed:", error);
-    return fail("No se pudo importar la receta. Inténtalo de nuevo.");
-  }
 }
 
 export async function clearSlot(input: unknown): Promise<MenuResult> {

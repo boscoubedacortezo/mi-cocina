@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Loader2, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { prepareImage } from "@/lib/images";
 import { RECIPE_IMAGES_BUCKET, type SourceType } from "@/lib/recipes/constants";
+import { extractCookidooUrl, isCookidooUrl } from "@/lib/recipes/cookidoo-url";
 import type { RecipeDraft } from "@/lib/recipes/draft";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,8 @@ type Imported = {
   draft: RecipeDraft;
   sourceType: SourceType;
   note: string | null;
+  /** A photo that comes with the recipe (Cookidoo's), saved along with it. */
+  imageUrl: string | null;
   /** Changes on every import so the form remounts with the new data. */
   id: number;
 };
@@ -42,6 +46,7 @@ type Imported = {
 type Photo = { id: string; blob: Blob; ext: string; url: string };
 
 export function NewRecipeFlow({ userId }: { userId: string }) {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("manual");
   const [imported, setImported] = useState<Imported | null>(null);
   const [pending, startTransition] = useTransition();
@@ -53,13 +58,23 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
 
   function handleResult(result: ImportResult) {
     if (!result.ok) {
-      toast.error(result.error);
+      const { existingId } = result;
+      toast.error(
+        result.error,
+        existingId
+          ? {
+              duration: 10_000,
+              action: { label: "Abrir", onClick: () => router.push(`/recetas/${existingId}`) },
+            }
+          : undefined,
+      );
       return;
     }
     setImported({
       draft: result.draft,
       sourceType: result.sourceType,
       note: result.note,
+      imageUrl: result.imageUrl,
       id: Date.now(),
     });
     window.scrollTo({ top: 0 });
@@ -147,6 +162,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
           userId={userId}
           sourceType={imported.sourceType}
           cancelHref="/recetas"
+          importedImageUrl={imported.imageUrl}
           initial={{ ...imported.draft, image_path: null, image_url: null }}
         />
       </div>
@@ -199,15 +215,28 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
           <Label htmlFor="import-url">Dirección de la receta</Label>
           <Input
             id="import-url"
-            type="url"
+            // Not type="url": what Cookidoo copies is a sentence with the link in it.
+            type="text"
             inputMode="url"
+            autoComplete="off"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://"
+            onPaste={(e) => {
+              // Pasting the whole shared text leaves just the link in the field.
+              const text = e.clipboardData.getData("text");
+              const link = extractCookidooUrl(text);
+              if (link !== text.trim() && isCookidooUrl(link)) {
+                e.preventDefault();
+                setUrl(link);
+              }
+            }}
+            placeholder="https:// (o el texto que copia Cookidoo)"
             disabled={pending}
           />
           <p className="text-sm text-muted-foreground">
-            Algunas webs bloquean la descarga. Si falla, pega el texto de la receta.
+            Sirve también para recetas de Cookidoo: se guardan con foto, ingredientes y tiempos
+            (los pasos los tienes allí). Algunas webs bloquean la descarga; si falla, pega el
+            texto de la receta.
           </p>
           <ImportButton pending={pending} disabled={!url.trim()} onClick={importUrl} />
         </section>

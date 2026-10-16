@@ -79,6 +79,7 @@ export function RecipeForm({
   recipeId,
   sourceType = "manual",
   initial,
+  importedImageUrl = null,
   cancelHref,
 }: {
   userId: string;
@@ -86,6 +87,8 @@ export function RecipeForm({
   recipeId?: string;
   sourceType?: SourceType;
   initial?: RecipeFormInitial;
+  /** A photo that came with an import (Cookidoo's): shown now, saved with the recipe. */
+  importedImageUrl?: string | null;
   /** Where "Cancelar" goes back to. */
   cancelHref: string;
 }) {
@@ -127,7 +130,9 @@ export function RecipeForm({
 
   // Photo: the stored path is kept until a new one is uploaded on save.
   const [imagePath, setImagePath] = useState(initial?.image_path ?? null);
-  const [preview, setPreview] = useState(initial?.image_url ?? null);
+  const [preview, setPreview] = useState(initial?.image_url ?? importedImageUrl);
+  // The imported photo stays remote until the recipe is saved; any choice of the user replaces it.
+  const [remoteImage, setRemoteImage] = useState(importedImageUrl);
   const [newImage, setNewImage] = useState<{ blob: Blob; ext: string } | null>(
     null,
   );
@@ -174,6 +179,7 @@ export function RecipeForm({
       const prepared = await prepareImage(file);
       if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
       setNewImage(prepared);
+      setRemoteImage(null);
       setPreview(URL.createObjectURL(prepared.blob));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Imagen no válida.");
@@ -183,6 +189,7 @@ export function RecipeForm({
   function removeImage() {
     if (preview?.startsWith("blob:")) URL.revokeObjectURL(preview);
     setNewImage(null);
+    setRemoteImage(null);
     setPreview(null);
     setImagePath(null);
     if (fileInput.current) fileInput.current.value = "";
@@ -234,7 +241,8 @@ export function RecipeForm({
 
     startTransition(async () => {
       let uploadedPath: string | null = null;
-      const payload = { ...parsed.data };
+      const payload: typeof parsed.data & { image_source_url?: string } = { ...parsed.data };
+      if (!recipeId && remoteImage && !newImage && !imagePath) payload.image_source_url = remoteImage;
 
       if (newImage) {
         const path = `${userId}/${crypto.randomUUID()}.${newImage.ext}`;

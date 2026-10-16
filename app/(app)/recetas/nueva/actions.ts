@@ -8,11 +8,24 @@ import type { AiRecipe } from "@/lib/ai/schemas";
 import { loadWebSource } from "@/lib/ai/web-source";
 import { requireUser } from "@/lib/auth-server";
 import { RECIPE_IMAGES_BUCKET, type SourceType } from "@/lib/recipes/constants";
+import {
+  extractCookidooUrl,
+  isCookidooImageHost,
+  isCookidooUrl,
+  normalizeRecipeUrl,
+} from "@/lib/recipes/cookidoo-url";
 import type { RecipeDraft } from "@/lib/recipes/draft";
 
 export type ImportResult =
-  | { ok: true; draft: RecipeDraft; sourceType: SourceType; note: string | null }
-  | { ok: false; error: string };
+  | {
+      ok: true;
+      draft: RecipeDraft;
+      sourceType: SourceType;
+      note: string | null;
+      /** A photo to bring along when the recipe is saved (Cookidoo's own). */
+      imageUrl: string | null;
+    }
+  | { ok: false; error: string; existingId?: string };
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_TYPES: Record<string, ImageMediaType> = {
@@ -34,17 +47,37 @@ const pathsSchema = z
   .min(1, "Añade al menos una foto.")
   .max(3, "Máximo 3 fotos por receta.");
 
+/** Thrown inside an import when the link is already in the library. */
+class DuplicateRecipe extends Error {
+  constructor(readonly recipe: { id: string; title: string }) {
+    super("duplicate");
+  }
+}
+
+const duplicateResult = (recipe: { id: string; title: string }): ImportResult => ({
+  ok: false,
+  error: `«${recipe.title}» ya está en tu recetario.`,
+  existingId: recipe.id,
+});
+
 async function run(
-  work: () => Promise<{ ai: AiRecipe; sourceType: SourceType; sourceUrl?: string; note?: string }>,
+  work: () => Promise<{
+    ai: AiRecipe;
+    sourceType: SourceType;
+    sourceUrl?: string;
+    note?: string;
+    imageUrl?: string | null;
+  }>,
 ): Promise<ImportResult> {
   try {
-    const { ai, sourceType, sourceUrl, note } = await work();
+    const { ai, sourceType, sourceUrl, note, imageUrl } = await work();
     const draft = toRecipeDraft(ai, sourceUrl ?? null);
     if (!ai.is_recipe || (draft.ingredients.length === 0 && draft.steps.length === 0)) {
       return { ok: false, error: "No parece que ahí haya una receta." };
     }
-    return { ok: true, draft, sourceType, note: note ?? null };
+    return { ok: true, draft, sourceType, note: note ?? null, imageUrl: imageUrl ?? null };
   } catch (error) {
+    if (error instanceof DuplicateRecipe) return duplicateResult(error.recipe);
     if (error instanceof ImportError) return { ok: false, error: error.message };
     console.error("[import] unexpected error:", error);
     return { ok: false, error: "No se pudo importar la receta. Inténtalo de nuevo." };
@@ -63,19 +96,54 @@ export async function importFromText(input: unknown): Promise<ImportResult> {
 }
 
 export async function importFromUrl(input: unknown): Promise<ImportResult> {
-  await requireUser();
+  const { supabase } = await requireUser();
   const parsed = urlSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  // What Cookidoo's "share" copies is a sentence with the link inside: keep only the link.
+  const link = extractCookidooUrl(parsed.data);
 
+  /** A recipe saved from the same link: reuse it instead of importing (and paying for the AI) again. */
+  const existing = async (key: string) => {
+    const { data } = await supabase
+      .from("recipes")
+      .select("id, title")
+      .eq("source_url", key)
+      .limit(1);
+    return data?.[0] as { id: string; title: string } | undefined;
+  };
+  const cookidoo = isCookidooUrl(link);
+  if (cookidoo) {
+    try {
+      const known = await existing(normalizeRecipeUrl(link));
+      if (known) return duplicateResult(known);
+    } catch {
+      // Not a valid link: loadWebSource will say so.
+    }
+  }
+
+  let imageUrl: string | null = null;
   return run(async () => {
-    const source = await loadWebSource(parsed.data);
+    const source = await loadWebSource(link);
+    const fromCookidoo = isCookidooUrl(source.finalUrl);
+    // Cookidoo keeps the recipe in the path; the query string is only share trackers.
+    const sourceUrl = fromCookidoo ? normalizeRecipeUrl(source.finalUrl) : source.finalUrl;
+    if (fromCookidoo) {
+      const known = await existing(sourceUrl);
+      if (known) throw new DuplicateRecipe(known);
+      if (source.imageUrl && isCookidooImageHost(new URL(source.imageUrl).hostname)) {
+        imageUrl = source.imageUrl;
+      }
+    }
     return {
       ai: await extractRecipe({ kind: "text", text: source.text }),
       sourceType: "url" as const,
-      sourceUrl: source.finalUrl,
+      sourceUrl,
+      imageUrl,
       note: source.truncated
         ? "La página es muy larga y solo se ha leído el principio. Comprueba que no falte nada."
-        : undefined,
+        : fromCookidoo
+          ? "Cookidoo no publica los pasos: aquí quedan los ingredientes y los tiempos."
+          : undefined,
     };
   });
 }

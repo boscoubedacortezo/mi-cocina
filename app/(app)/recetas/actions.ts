@@ -2,9 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { requireUser } from "@/lib/auth-server";
 import { contentSignature } from "@/lib/recipes/auto-meta";
 import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
+import { isCookidooImageHost } from "@/lib/recipes/cookidoo-url";
 import { recipeInputSchema } from "@/lib/recipes/schema";
 import {
   autoFillMeta,
@@ -12,6 +14,7 @@ import {
   insertChildren,
   insertRecipe,
   ownsImage,
+  saveImageFromUrl,
 } from "@/lib/recipes/save";
 
 export type ActionResult = { error: string };
@@ -24,8 +27,25 @@ export async function createRecipe(input: unknown): Promise<ActionResult> {
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   if (!ownsImage(parsed.data.image_path, userId)) return { error: GENERIC_ERROR };
 
-  const id = await insertRecipe(supabase, parsed.data);
-  if (!id) return { error: GENERIC_ERROR };
+  // An imported recipe can bring its own photo (Cookidoo's): saved here, best effort,
+  // so abandoning the review never leaves a stray file in Storage.
+  let imagePath = parsed.data.image_path;
+  const remote = z
+    .url({ protocol: /^https$/ })
+    .max(2000)
+    .safeParse((input as { image_source_url?: unknown } | null)?.image_source_url);
+  if (!imagePath && remote.success) {
+    const saved = await saveImageFromUrl(supabase, userId, remote.data, isCookidooImageHost);
+    if ("path" in saved) imagePath = saved.path;
+  }
+
+  const id = await insertRecipe(supabase, { ...parsed.data, image_path: imagePath });
+  if (!id) {
+    if (imagePath && imagePath !== parsed.data.image_path) {
+      await supabase.storage.from(RECIPE_IMAGES_BUCKET).remove([imagePath]);
+    }
+    return { error: GENERIC_ERROR };
+  }
 
   const { ingredients, steps, ...recipe } = parsed.data;
   await autoFillMeta(supabase, id, recipe, ingredients, steps, "missing");
