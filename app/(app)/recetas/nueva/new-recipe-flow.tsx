@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Loader2, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Camera, ExternalLink, Loader2, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { prepareImage } from "@/lib/images";
 import { RECIPE_IMAGES_BUCKET, type SourceType } from "@/lib/recipes/constants";
 import { extractCookidooUrl, isCookidooUrl } from "@/lib/recipes/cookidoo-url";
+import { socialPlatform } from "@/lib/recipes/social-url";
 import type { RecipeDraft } from "@/lib/recipes/draft";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
 
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
+  const [transcript, setTranscript] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -85,7 +87,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
   }
 
   function importUrl() {
-    startTransition(async () => handleResult(await importFromUrl(url)));
+    startTransition(async () => handleResult(await importFromUrl(url, transcript)));
   }
 
   async function addPhotos(files: FileList | null) {
@@ -238,6 +240,41 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
             los tienes allí) y para publicaciones de Instagram y TikTok que traen la receta
             escrita. Algunas webs bloquean la descarga; si falla, pega el texto de la receta.
           </p>
+          <details className="rounded-xl border p-3" open={transcript.length > 0}>
+            <summary className="cursor-pointer text-sm font-medium">
+              ¿Receta de un vídeo? Añade lo que se dice
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              <p className="text-sm text-muted-foreground">
+                Muchas recetas de TikTok e Instagram explican los pasos hablando. Pega aquí la
+                transcripción del audio y se juntará con el texto de la publicación: las
+                cantidades salen del texto y el método, de lo que se dice.
+              </p>
+              {socialPlatform(extractCookidooUrl(url)) && (
+                <a
+                  href={`https://www.tokscript.com/${extractCookidooUrl(url)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex w-fit items-center gap-1.5 text-sm underline underline-offset-4"
+                >
+                  <ExternalLink className="size-4" aria-hidden /> Sacar la transcripción en
+                  TokScript
+                </a>
+              )}
+              <Label htmlFor="import-transcript" className="sr-only">
+                Transcripción del vídeo
+              </Label>
+              <Textarea
+                id="import-transcript"
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                rows={8}
+                maxLength={30_000}
+                placeholder="Pega aquí el texto del audio (opcional)"
+                disabled={pending}
+              />
+            </div>
+          </details>
           <ImportButton pending={pending} disabled={!url.trim()} onClick={importUrl} />
         </section>
       )}

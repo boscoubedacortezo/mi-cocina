@@ -168,7 +168,7 @@ function socialSource(platform: SocialPlatform, $: cheerio.CheerioAPI, finalUrl:
       `No he podido leer el texto de esa publicación de ${SOCIAL_LABELS[platform]} (o no lo trae). Pega el texto de la receta o sube capturas de pantalla.`,
     );
   }
-  const header = `Publicación de ${SOCIAL_LABELS[platform]}${author ? ` de ${author}` : ""}. El texto de la publicación es la receta:`;
+  const header = `Publicación de ${SOCIAL_LABELS[platform]}${author ? ` de ${author}` : ""}. Texto de la publicación:`;
   return {
     kind: "social",
     text: `${header}\n${caption}`.slice(0, MAX_TEXT_CHARS),

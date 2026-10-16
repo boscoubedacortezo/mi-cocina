@@ -33,5 +33,13 @@ Una entrada por ingrediente, en el orden del origen.
 - Un paso por acción o grupo de acciones coherente, en el orden del origen, en imperativo ("Pica la cebolla…").
 - Sin numeración ni texto publicitario. Conserva tiempos, temperaturas y puntos de cocción tal como aparecen.
 
+## Publicaciones de vídeo
+A veces el origen es una publicación de redes sociales con dos partes: el texto de la publicación y la transcripción del audio del vídeo.
+- Combínalas en una sola receta. El texto de la publicación suele traer los ingredientes y las cantidades exactas; la transcripción suele traer el método, el orden de los pasos, los tiempos y los trucos.
+- Si se contradicen, manda el texto de la publicación en cantidades y la transcripción en el orden y el método.
+- La transcripción viene de reconocimiento de voz automático: puede tener errores (nombres de ingredientes mal escritos, números confundidos). Corrígelos solo si el contexto lo deja claro; si un número o una cantidad es dudoso, déjalo en null.
+- Ignora saludos, "dale a like", "suscríbete", anuncios y comentarios que no son de la receta.
+- Pasos dichos en primera persona o en plural ("ahora echamos…") pásalos al imperativo.
+
 ## Fotos
 Las imágenes son fotos de páginas de un libro o de un papel, a veces varias páginas de una misma receta en orden. Lee con cuidado las cantidades. Si algo es ilegible, déjalo en null en vez de adivinarlo.`;

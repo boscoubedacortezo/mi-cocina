@@ -43,6 +43,10 @@ const textSchema = z
   .min(40, "Pega la receta completa: hay muy poco texto.")
   .max(30_000, "El texto es demasiado largo (máximo 30.000 caracteres).");
 const urlSchema = z.string().trim().min(1, "Pega una URL.").max(2000);
+const transcriptSchema = z
+  .string()
+  .trim()
+  .max(30_000, "La transcripción es demasiado larga (máximo 30.000 caracteres).");
 const pathsSchema = z
   .array(z.string().max(300))
   .min(1, "Añade al menos una foto.")
@@ -97,10 +101,17 @@ export async function importFromText(input: unknown): Promise<ImportResult> {
   }));
 }
 
-export async function importFromUrl(input: unknown): Promise<ImportResult> {
+/**
+ * `transcript` is the optional spoken text of a video (e.g. from TokScript): it joins the
+ * post's caption so the recipe has both the quantities and the method.
+ */
+export async function importFromUrl(input: unknown, transcript?: unknown): Promise<ImportResult> {
   const { supabase } = await requireUser();
   const parsed = urlSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const spoken = transcriptSchema.safeParse(transcript ?? "");
+  if (!spoken.success) return { ok: false, error: spoken.error.issues[0].message };
+  const spokenText = spoken.data;
   // What Cookidoo's "share" copies is a sentence with the link inside: keep only the link.
   const link = extractCookidooUrl(parsed.data);
 
@@ -128,7 +139,20 @@ export async function importFromUrl(input: unknown): Promise<ImportResult> {
     : undefined;
   let imageUrl: string | null = null;
   return run(async () => {
-    const source = await loadWebSource(link);
+    let source;
+    try {
+      source = await loadWebSource(link);
+    } catch (error) {
+      // With the transcript in hand, a post whose caption cannot be read is still usable.
+      if (!(error instanceof ImportError) || !spokenText || !social) throw error;
+      source = {
+        kind: "social" as const,
+        text: "",
+        truncated: false,
+        finalUrl: link,
+        imageUrl: null,
+      };
+    }
     const fromCookidoo = isCookidooUrl(source.finalUrl);
     const fromSocial = source.kind === "social";
     // Cookidoo and social posts keep the recipe in the path; the query string is only share trackers.
@@ -143,8 +167,11 @@ export async function importFromUrl(input: unknown): Promise<ImportResult> {
         imageUrl = source.imageUrl;
       }
     }
+    const text = spokenText
+      ? `${source.text}\n\nTranscripción del audio del vídeo (reconocimiento de voz automático, puede tener errores):\n${spokenText}`.trim()
+      : source.text;
     return {
-      ai: await extractRecipe({ kind: "text", text: source.text }),
+      ai: await extractRecipe({ kind: "text", text }),
       sourceType: "url" as const,
       sourceUrl,
       imageUrl,
@@ -153,7 +180,9 @@ export async function importFromUrl(input: unknown): Promise<ImportResult> {
         : fromCookidoo
           ? "Cookidoo no publica los pasos: aquí quedan los ingredientes y los tiempos."
           : fromSocial
-            ? "Receta leída del texto de la publicación. Si los pasos solo salen en el vídeo, tendrás que completarlos."
+            ? spokenText
+              ? "Receta hecha con el texto de la publicación y la transcripción del audio. Revisa cantidades y tiempos: la transcripción puede tener errores."
+              : "Receta leída del texto de la publicación. Si los pasos solo salen en el vídeo, tendrás que completarlos."
             : undefined,
     };
   }, notRecipeMessage);
