@@ -14,7 +14,12 @@ import {
   isCookidooUrl,
   normalizeRecipeUrl,
 } from "@/lib/recipes/cookidoo-url";
-import { SOCIAL_LABELS, normalizeSocialUrl, socialPlatform } from "@/lib/recipes/social-url";
+import {
+  SOCIAL_LABELS,
+  isSocialImageHost,
+  normalizeSocialUrl,
+  socialPlatform,
+} from "@/lib/recipes/social-url";
 import type { RecipeDraft } from "@/lib/recipes/draft";
 
 export type ImportResult =
@@ -165,10 +170,11 @@ export async function importFromUrl(input: unknown, transcript?: unknown): Promi
       const known = await existing(sourceUrl);
       if (known) throw new DuplicateRecipe(known);
     }
-    if (fromCookidoo) {
-      if (source.imageUrl && isCookidooImageHost(new URL(source.imageUrl).hostname)) {
-        imageUrl = source.imageUrl;
-      }
+    // The photo: Cookidoo's own, or the cover of the video. Only from the hosts that serve them.
+    if (source.imageUrl) {
+      const host = new URL(source.imageUrl).hostname;
+      const allowed = fromCookidoo ? isCookidooImageHost(host) : fromSocial && isSocialImageHost(host);
+      if (allowed) imageUrl = source.imageUrl;
     }
     const text = spokenText
       ? `${source.text}\n\nTranscripción del audio del vídeo (reconocimiento de voz automático, puede tener errores):\n${spokenText}`.trim()

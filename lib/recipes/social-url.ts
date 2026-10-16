@@ -40,3 +40,14 @@ export function normalizeSocialUrl(raw: string) {
   }
   return normalizeRecipeUrl(raw);
 }
+
+/** Where the cover pictures of those posts live (their CDNs), the only hosts we download from. */
+export function isSocialImageHost(hostname: string) {
+  return (
+    hostname.endsWith(".cdninstagram.com") ||
+    hostname.endsWith(".fbcdn.net") ||
+    /(^|\.)tiktokcdn(-[a-z]+)?\.com$/.test(hostname) ||
+    hostname === "i.ytimg.com" ||
+    hostname === "img.youtube.com"
+  );
+}

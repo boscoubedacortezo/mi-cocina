@@ -291,7 +291,12 @@ export function RecipeForm({
         {preview ? (
           <div className="relative overflow-hidden rounded-xl border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="" className="aspect-[4/3] w-full object-cover" />
+            <img
+              src={preview}
+              alt=""
+              referrerPolicy="no-referrer"
+              className="aspect-[4/3] w-full object-cover"
+            />
             <Button
               type="button"
               variant="secondary"

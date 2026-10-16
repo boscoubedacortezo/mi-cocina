@@ -140,7 +140,7 @@ function instagramCaption($: cheerio.CheerioAPI) {
   const quoted = (text: string) => text.match(/:\s*"([\s\S]*)"\.?\s*$/)?.[1]?.trim() ?? "";
   const caption = quoted(description) || quoted(title);
   const author = title.match(/^(.+?) on Instagram/)?.[1]?.trim() ?? null;
-  return { caption, author };
+  return { caption, author, image: $('meta[property="og:image"]').attr("content") ?? null };
 }
 
 /** TikTok keeps the post (caption, author) in a JSON block of the page. */
@@ -149,15 +149,26 @@ function tiktokCaption($: cheerio.CheerioAPI) {
   try {
     const scope = JSON.parse(raw).__DEFAULT_SCOPE__ as Record<string, unknown>;
     const detail = scope["webapp.video-detail"] as {
-      itemInfo?: { itemStruct?: { desc?: string; author?: { uniqueId?: string; nickname?: string } } };
+      itemInfo?: {
+        itemStruct?: {
+          desc?: string;
+          author?: { uniqueId?: string; nickname?: string };
+          video?: { cover?: string; originCover?: string };
+        };
+      };
     };
     const item = detail?.itemInfo?.itemStruct;
     return {
       caption: item?.desc?.trim() ?? "",
       author: item?.author?.nickname || item?.author?.uniqueId || null,
+      image:
+        item?.video?.originCover ||
+        item?.video?.cover ||
+        $('meta[property="og:image"]').attr("content") ||
+        null,
     };
   } catch {
-    return { caption: "", author: null };
+    return { caption: "", author: null, image: null };
   }
 }
 
@@ -171,7 +182,11 @@ function youtubeCaption($: cheerio.CheerioAPI, html: string) {
     // Keep it empty: the caller says the text could not be read.
   }
   const title = $('meta[property="og:title"]').attr("content")?.trim() ?? "";
-  return { caption: title && caption ? `${title}\n${caption}` : caption, author: null };
+  return {
+    caption: title && caption ? `${title}\n${caption}` : caption,
+    author: null,
+    image: $('meta[property="og:image"]').attr("content") ?? null,
+  };
 }
 
 function socialSource(
@@ -180,7 +195,7 @@ function socialSource(
   finalUrl: string,
   html: string,
 ): WebSource {
-  const { caption, author } =
+  const { caption, author, image } =
     platform === "instagram"
       ? instagramCaption($)
       : platform === "tiktok"
@@ -197,7 +212,8 @@ function socialSource(
     text: `${header}\n${caption}`.slice(0, MAX_TEXT_CHARS),
     truncated: false,
     finalUrl,
-    imageUrl: null,
+    // The cover of the video, when the page gives one (a link that may expire: it is copied on save).
+    imageUrl: image,
   };
 }
 

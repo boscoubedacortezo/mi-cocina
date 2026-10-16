@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth-server";
 import { contentSignature } from "@/lib/recipes/auto-meta";
 import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
 import { isCookidooImageHost } from "@/lib/recipes/cookidoo-url";
+import { isSocialImageHost } from "@/lib/recipes/social-url";
 import { recipeInputSchema } from "@/lib/recipes/schema";
 import {
   autoFillMeta,
@@ -35,7 +36,12 @@ export async function createRecipe(input: unknown): Promise<ActionResult> {
     .max(2000)
     .safeParse((input as { image_source_url?: unknown } | null)?.image_source_url);
   if (!imagePath && remote.success) {
-    const saved = await saveImageFromUrl(supabase, userId, remote.data, isCookidooImageHost);
+    const saved = await saveImageFromUrl(
+      supabase,
+      userId,
+      remote.data,
+      (host) => isCookidooImageHost(host) || isSocialImageHost(host),
+    );
     if ("path" in saved) imagePath = saved.path;
   }
 
