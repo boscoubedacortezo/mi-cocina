@@ -2,16 +2,23 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Camera, ExternalLink, Loader2, Sparkles, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  ClipboardPaste,
+  ExternalLink,
+  Loader2,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { prepareImage } from "@/lib/images";
 import { RECIPE_IMAGES_BUCKET, type SourceType } from "@/lib/recipes/constants";
 import { extractCookidooUrl, isCookidooUrl } from "@/lib/recipes/cookidoo-url";
-import { socialPlatform } from "@/lib/recipes/social-url";
 import type { RecipeDraft } from "@/lib/recipes/draft";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -68,7 +75,10 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
         existingId
           ? {
               duration: 10_000,
-              action: { label: "Abrir", onClick: () => router.push(`/recetas/${existingId}`) },
+              action: {
+                label: "Abrir",
+                onClick: () => router.push(`/recetas/${existingId}`),
+              },
             }
           : undefined,
       );
@@ -92,19 +102,46 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
     startTransition(async () => handleResult(await importFromUrl(url)));
   }
 
+  /** Fills a field from the clipboard with one tap (the browser may ask permission). */
+  async function pasteInto(
+    set: (text: string) => void,
+    clean?: (text: string) => string,
+  ) {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        toast.info("El portapapeles está vacío.");
+        return;
+      }
+      set(clean ? clean(text) : text);
+    } catch {
+      toast.error(
+        "No se pudo leer el portapapeles. Pega con mantener pulsado.",
+      );
+    }
+  }
+
   function importVideo() {
-    startTransition(async () => handleResult(await importFromUrl(videoUrl, transcript)));
+    startTransition(async () =>
+      handleResult(await importFromUrl(videoUrl, transcript)),
+    );
   }
 
   async function addPhotos(files: FileList | null) {
     if (!files?.length) return;
     const room = MAX_PHOTOS - photos.length;
-    if (files.length > room) toast.error(`Máximo ${MAX_PHOTOS} fotos por receta.`);
+    if (files.length > room)
+      toast.error(`Máximo ${MAX_PHOTOS} fotos por receta.`);
     const added: Photo[] = [];
     for (const file of Array.from(files).slice(0, room)) {
       try {
         const { blob, ext } = await prepareImage(file);
-        added.push({ id: crypto.randomUUID(), blob, ext, url: URL.createObjectURL(blob) });
+        added.push({
+          id: crypto.randomUUID(),
+          blob,
+          ext,
+          url: URL.createObjectURL(blob),
+        });
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Foto no válida.");
       }
@@ -159,10 +196,12 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
           <Sparkles className="mt-0.5 size-4 shrink-0" aria-hidden />
           <div className="flex flex-col gap-1">
             <p>
-              <strong>Receta importada con IA.</strong> Revisa los datos antes de
-              guardar: cantidades, unidades y pasos pueden tener errores.
+              <strong>Receta importada con IA.</strong> Revisa los datos antes
+              de guardar: cantidades, unidades y pasos pueden tener errores.
             </p>
-            {imported.note && <p className="text-muted-foreground">{imported.note}</p>}
+            {imported.note && (
+              <p className="text-muted-foreground">{imported.note}</p>
+            )}
           </div>
         </div>
         <RecipeForm
@@ -179,7 +218,11 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label="Cómo añadir la receta" className="grid grid-cols-5 gap-1 rounded-lg bg-muted p-1">
+      <div
+        role="tablist"
+        aria-label="Cómo añadir la receta"
+        className="grid grid-cols-5 gap-1 rounded-lg bg-muted p-1"
+      >
         {MODES.map(({ id, label }) => (
           <button
             key={id}
@@ -190,7 +233,8 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
             onClick={() => setMode(id)}
             className={cn(
               "rounded-md py-1.5 text-sm text-muted-foreground transition-colors",
-              mode === id && "bg-background font-medium text-foreground shadow-sm",
+              mode === id &&
+                "bg-background font-medium text-foreground shadow-sm",
             )}
           >
             {label}
@@ -214,7 +258,11 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
             placeholder="Ingredientes, pasos… tal como la tengas (de un mensaje, un PDF, una web…)."
             disabled={pending}
           />
-          <ImportButton pending={pending} disabled={text.trim().length < 40} onClick={importText} />
+          <ImportButton
+            pending={pending}
+            disabled={text.trim().length < 40}
+            onClick={importText}
+          />
         </section>
       )}
 
@@ -242,55 +290,80 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
             disabled={pending}
           />
           <p className="text-sm text-muted-foreground">
-            Sirve también para recetas de Cookidoo (con foto, ingredientes y tiempos; los pasos
-            los tienes allí) y para publicaciones de Instagram y TikTok que traen la receta
-            escrita. Si la receta se explica hablando en el vídeo, usa la pestaña Vídeo. Algunas
-            webs bloquean la descarga; si falla, pega el texto de la receta.
+            Sirve también para recetas de Cookidoo (con foto, ingredientes y
+            tiempos; los pasos los tienes allí) y para publicaciones de
+            Instagram y TikTok que traen la receta escrita. Si la receta se
+            explica hablando en el vídeo, usa la pestaña Vídeo. Algunas webs
+            bloquean la descarga; si falla, pega el texto de la receta.
           </p>
-          <ImportButton pending={pending} disabled={!url.trim()} onClick={importUrl} />
+          <ImportButton
+            pending={pending}
+            disabled={!url.trim()}
+            onClick={importUrl}
+          />
         </section>
       )}
 
       {mode === "video" && (
         <section className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground">
-            Para recetas de TikTok, Instagram o YouTube Shorts que explican los pasos hablando.
-            Se junta el texto de la publicación (cantidades) con la transcripción del audio
-            (método).
+            Para recetas de TikTok, Instagram o YouTube Shorts que explican los
+            pasos hablando. Se junta el texto de la publicación (cantidades) con
+            la transcripción del audio (método).
           </p>
           <Label htmlFor="video-url">Enlace del vídeo</Label>
-          <Input
-            id="video-url"
-            // Not type="url": a shared link usually comes inside a sentence.
-            type="text"
-            inputMode="url"
-            autoComplete="off"
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
-            onPaste={(e) => {
-              // Pasting the whole shared text leaves just the link in the field.
-              const text = e.clipboardData.getData("text");
-              const link = extractCookidooUrl(text);
-              if (link !== text.trim() && /^https?:\/\//.test(link)) {
-                e.preventDefault();
-                setVideoUrl(link);
-              }
-            }}
-            placeholder="https:// (o el texto que copia la app)"
-            disabled={pending}
-          />
-          <div className="flex items-baseline justify-between gap-2">
+          <div className="flex gap-2">
+            <Input
+              id="video-url"
+              // Not type="url": a shared link usually comes inside a sentence.
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              onPaste={(e) => {
+                // Pasting the whole shared text leaves just the link in the field.
+                const text = e.clipboardData.getData("text");
+                const link = extractCookidooUrl(text);
+                if (link !== text.trim() && /^https?:\/\//.test(link)) {
+                  e.preventDefault();
+                  setVideoUrl(link);
+                }
+              }}
+              placeholder="https:// (o el texto que copia la app)"
+              disabled={pending}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => pasteInto(setVideoUrl, extractCookidooUrl)}
+              aria-label="Pegar el enlace del portapapeles"
+            >
+              <ClipboardPaste /> Pegar
+            </Button>
+          </div>
+          <div className="flex items-center justify-between gap-2">
             <Label htmlFor="video-transcript">Transcripción del audio</Label>
-            {socialPlatform(extractCookidooUrl(videoUrl)) && (
+            <div className="flex gap-2">
               <a
-                href={`https://www.tokscript.com/${extractCookidooUrl(videoUrl)}`}
+                href={`https://www.tokscript.com/${videoUrl.trim() ? extractCookidooUrl(videoUrl) : ""}`}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1.5 text-sm underline underline-offset-4"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
               >
-                <ExternalLink className="size-4" aria-hidden /> Sacarla en TokScript
+                <ExternalLink /> TokScript
               </a>
-            )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() => pasteInto(setTranscript)}
+              >
+                <ClipboardPaste /> Pegar
+              </Button>
+            </div>
           </div>
           <Textarea
             id="video-transcript"
@@ -313,15 +386,23 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
         <section className="flex flex-col gap-3">
           <Label>Fotos de la receta</Label>
           <p className="text-sm text-muted-foreground">
-            De un libro o de un papel. Hasta {MAX_PHOTOS} fotos si la receta ocupa varias
-            páginas (en orden). Se usan solo para leer el texto y se borran después.
+            De un libro o de un papel. Hasta {MAX_PHOTOS} fotos si la receta
+            ocupa varias páginas (en orden). Se usan solo para leer el texto y
+            se borran después.
           </p>
           {photos.length > 0 && (
             <ul className="grid grid-cols-3 gap-2">
               {photos.map((photo, index) => (
-                <li key={photo.id} className="relative overflow-hidden rounded-lg border">
+                <li
+                  key={photo.id}
+                  className="relative overflow-hidden rounded-lg border"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.url} alt={`Foto ${index + 1}`} className="aspect-square w-full object-cover" />
+                  <img
+                    src={photo.url}
+                    alt={`Foto ${index + 1}`}
+                    className="aspect-square w-full object-cover"
+                  />
                   <Button
                     type="button"
                     variant="secondary"
@@ -345,7 +426,8 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
               disabled={pending}
               onClick={() => fileInput.current?.click()}
             >
-              <Camera /> {photos.length ? "Añadir otra foto" : "Hacer o elegir foto"}
+              <Camera />{" "}
+              {photos.length ? "Añadir otra foto" : "Hacer o elegir foto"}
             </Button>
           )}
           <input
@@ -356,7 +438,11 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
             className="hidden"
             onChange={(e) => addPhotos(e.target.files)}
           />
-          <ImportButton pending={pending} disabled={photos.length === 0} onClick={importPhotos} />
+          <ImportButton
+            pending={pending}
+            disabled={photos.length === 0}
+            onClick={importPhotos}
+          />
         </section>
       )}
     </div>
@@ -373,10 +459,16 @@ function ImportButton({
   onClick: () => void;
 }) {
   return (
-    <Button type="button" size="lg" disabled={pending || disabled} onClick={onClick}>
+    <Button
+      type="button"
+      size="lg"
+      disabled={pending || disabled}
+      onClick={onClick}
+    >
       {pending ? (
         <>
-          <Loader2 className="animate-spin" /> Leyendo la receta… (unos segundos)
+          <Loader2 className="animate-spin" /> Leyendo la receta… (unos
+          segundos)
         </>
       ) : (
         <>

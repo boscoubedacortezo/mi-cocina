@@ -69,3 +69,13 @@ export const EQUIPMENT_ICONS: Record<Equipment, LucideIcon> = {
   microondas: Microwave,
   sin_coccion: Salad,
 };
+
+/** A Thermomix: the jug on its base. Used for Cookidoo, the Thermomix recipe platform. */
+export const ThermomixIcon = svg(
+  <>
+    <path d="M8 3h8l1 11H7z" />
+    <path d="M17 6h2.5v6H17" />
+    <rect x="4" y="16" width="16" height="5" rx="1.5" />
+    <path d="M12 18.5h.01" />
+  </>,
+);
