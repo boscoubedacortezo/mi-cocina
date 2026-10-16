@@ -23,12 +23,13 @@ import {
   type ImportResult,
 } from "./actions";
 
-type Mode = "manual" | "texto" | "url" | "foto";
+type Mode = "manual" | "texto" | "url" | "video" | "foto";
 
 const MODES: { id: Mode; label: string }[] = [
   { id: "manual", label: "Manual" },
   { id: "texto", label: "Texto" },
   { id: "url", label: "URL" },
+  { id: "video", label: "Vídeo" },
   { id: "foto", label: "Foto" },
 ];
 
@@ -54,6 +55,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
 
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
   const [transcript, setTranscript] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -87,7 +89,11 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
   }
 
   function importUrl() {
-    startTransition(async () => handleResult(await importFromUrl(url, transcript)));
+    startTransition(async () => handleResult(await importFromUrl(url)));
+  }
+
+  function importVideo() {
+    startTransition(async () => handleResult(await importFromUrl(videoUrl, transcript)));
   }
 
   async function addPhotos(files: FileList | null) {
@@ -173,7 +179,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label="Cómo añadir la receta" className="grid grid-cols-4 gap-1 rounded-lg bg-muted p-1">
+      <div role="tablist" aria-label="Cómo añadir la receta" className="grid grid-cols-5 gap-1 rounded-lg bg-muted p-1">
         {MODES.map(({ id, label }) => (
           <button
             key={id}
@@ -238,44 +244,68 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
           <p className="text-sm text-muted-foreground">
             Sirve también para recetas de Cookidoo (con foto, ingredientes y tiempos; los pasos
             los tienes allí) y para publicaciones de Instagram y TikTok que traen la receta
-            escrita. Algunas webs bloquean la descarga; si falla, pega el texto de la receta.
+            escrita. Si la receta se explica hablando en el vídeo, usa la pestaña Vídeo. Algunas
+            webs bloquean la descarga; si falla, pega el texto de la receta.
           </p>
-          <details className="rounded-xl border p-3" open={transcript.length > 0}>
-            <summary className="cursor-pointer text-sm font-medium">
-              ¿Receta de un vídeo? Añade lo que se dice
-            </summary>
-            <div className="mt-3 flex flex-col gap-3">
-              <p className="text-sm text-muted-foreground">
-                Muchas recetas de TikTok e Instagram explican los pasos hablando. Pega aquí la
-                transcripción del audio y se juntará con el texto de la publicación: las
-                cantidades salen del texto y el método, de lo que se dice.
-              </p>
-              {socialPlatform(extractCookidooUrl(url)) && (
-                <a
-                  href={`https://www.tokscript.com/${extractCookidooUrl(url)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex w-fit items-center gap-1.5 text-sm underline underline-offset-4"
-                >
-                  <ExternalLink className="size-4" aria-hidden /> Sacar la transcripción en
-                  TokScript
-                </a>
-              )}
-              <Label htmlFor="import-transcript" className="sr-only">
-                Transcripción del vídeo
-              </Label>
-              <Textarea
-                id="import-transcript"
-                value={transcript}
-                onChange={(e) => setTranscript(e.target.value)}
-                rows={8}
-                maxLength={30_000}
-                placeholder="Pega aquí el texto del audio (opcional)"
-                disabled={pending}
-              />
-            </div>
-          </details>
           <ImportButton pending={pending} disabled={!url.trim()} onClick={importUrl} />
+        </section>
+      )}
+
+      {mode === "video" && (
+        <section className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            Para recetas de TikTok, Instagram o YouTube Shorts que explican los pasos hablando.
+            Se junta el texto de la publicación (cantidades) con la transcripción del audio
+            (método).
+          </p>
+          <Label htmlFor="video-url">Enlace del vídeo</Label>
+          <Input
+            id="video-url"
+            // Not type="url": a shared link usually comes inside a sentence.
+            type="text"
+            inputMode="url"
+            autoComplete="off"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            onPaste={(e) => {
+              // Pasting the whole shared text leaves just the link in the field.
+              const text = e.clipboardData.getData("text");
+              const link = extractCookidooUrl(text);
+              if (link !== text.trim() && /^https?:\/\//.test(link)) {
+                e.preventDefault();
+                setVideoUrl(link);
+              }
+            }}
+            placeholder="https:// (o el texto que copia la app)"
+            disabled={pending}
+          />
+          <div className="flex items-baseline justify-between gap-2">
+            <Label htmlFor="video-transcript">Transcripción del audio</Label>
+            {socialPlatform(extractCookidooUrl(videoUrl)) && (
+              <a
+                href={`https://www.tokscript.com/${extractCookidooUrl(videoUrl)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-sm underline underline-offset-4"
+              >
+                <ExternalLink className="size-4" aria-hidden /> Sacarla en TokScript
+              </a>
+            )}
+          </div>
+          <Textarea
+            id="video-transcript"
+            value={transcript}
+            onChange={(e) => setTranscript(e.target.value)}
+            rows={10}
+            maxLength={30_000}
+            placeholder="Pega aquí el texto de lo que se dice en el vídeo"
+            disabled={pending}
+          />
+          <ImportButton
+            pending={pending}
+            disabled={!videoUrl.trim() || transcript.trim().length < 40}
+            onClick={importVideo}
+          />
         </section>
       )}
 
