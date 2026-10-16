@@ -218,12 +218,35 @@ function socialSource(
   };
 }
 
+/**
+ * The preview image of an Instagram post has the play button drawn on it. The embed page
+ * of the same post serves the plain, larger frame; null when it cannot be read.
+ */
+async function instagramPlainCover(postUrl: string) {
+  const match = new URL(postUrl).pathname.match(/^\/(?:[^/]+\/)?(p|reel|reels|tv)\/([^/]+)/);
+  if (!match) return null;
+  const kind = match[1] === "reels" ? "reel" : match[1];
+  try {
+    const { html } = await fetchPublicHtml(`https://www.instagram.com/${kind}/${match[2]}/embed/captioned/`);
+    const src = cheerio.load(html)("img.EmbeddedMediaImage").first().attr("src");
+    return src ? new URL(src).toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function loadWebSource(url: string): Promise<WebSource> {
   const { html, finalUrl } = await fetchPublicHtml(url);
   const $ = cheerio.load(html);
 
   const platform = socialPlatform(finalUrl);
-  if (platform) return socialSource(platform, $, finalUrl, html);
+  if (platform) {
+    const source = socialSource(platform, $, finalUrl, html);
+    if (platform === "instagram") {
+      source.imageUrl = (await instagramPlainCover(finalUrl)) ?? source.imageUrl;
+    }
+    return source;
+  }
 
   const found = extractJsonLdRecipe($);
   const imageUrl = resolveImage($, found?.image ?? null, finalUrl);
