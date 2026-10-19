@@ -19,6 +19,7 @@ import { ThermomixIcon } from "@/components/equipment-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { beepDataUrl, unlockDataUrl } from "@/lib/beep";
+import { useWakeLock } from "@/lib/use-wake-lock";
 import { findStepTimers, formatClock } from "@/lib/recipes/step-timers";
 import { cn } from "@/lib/utils";
 
@@ -85,24 +86,8 @@ export function CookMode({
   const last = index === current.steps.length - 1;
   const stepTimers = useMemo(() => (step ? findStepTimers(step.text) : []), [step]);
 
-  // Keep the screen on while cooking, and take the lock again if the tab was hidden.
-  useEffect(() => {
-    let lock: WakeLockSentinel | null = null;
-    const request = async () => {
-      try {
-        lock = (await navigator.wakeLock?.request("screen")) ?? null;
-      } catch {
-        // Not supported or refused: the screen may dim, nothing else.
-      }
-    };
-    request();
-    const onVisible = () => document.visibilityState === "visible" && request();
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      lock?.release().catch(() => {});
-    };
-  }, []);
+  // Keep the screen on while cooking.
+  useWakeLock(true);
 
   // One tick per second while a timer runs.
   const anyRunning = timers.some((timer) => timer.endsAt !== null && !timer.done);

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Mic, Square } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useWakeLock } from "@/lib/use-wake-lock";
 import { cn } from "@/lib/utils";
 
 /* The browser's own speech recognition (not in every TypeScript lib, so typed here). */
@@ -62,6 +63,8 @@ export function DictationButton({
     () => false,
   );
   const [listening, setListening] = useState(false);
+  // A screen that goes dark would end the dictation.
+  useWakeLock(listening);
   const recognition = useRef<Recognition | null>(null);
   const wanted = useRef(false);
   // The text before this stretch of dictation and what has been confirmed in it.
