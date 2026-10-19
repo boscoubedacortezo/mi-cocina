@@ -3,10 +3,12 @@
 import { z } from "zod";
 import { toRecipeDraft } from "@/lib/ai/draft";
 import { ImportError } from "@/lib/ai/errors";
+import { createRecipeFromRequest } from "@/lib/ai/create-recipe";
 import { extractRecipe, type ImageMediaType } from "@/lib/ai/extract-recipe";
 import type { AiRecipe } from "@/lib/ai/schemas";
 import { loadWebSource } from "@/lib/ai/web-source";
 import { requireUser } from "@/lib/auth-server";
+import { getMenuPreferences } from "@/lib/settings/queries";
 import { RECIPE_IMAGES_BUCKET, type SourceType } from "@/lib/recipes/constants";
 import {
   extractCookidooUrl,
@@ -93,6 +95,32 @@ async function run(
     console.error("[import] unexpected error:", error);
     return { ok: false, error: "No se pudo importar la receta. Inténtalo de nuevo." };
   }
+}
+
+const requestSchema = z
+  .string()
+  .trim()
+  .min(3, "Cuéntame qué quieres cocinar.")
+  .max(500, "Es demasiado largo (máximo 500 caracteres).");
+
+/** Writes a recipe from a short description ("tortilla a la francesa"); it goes to review. */
+export async function createWithAi(input: unknown): Promise<ImportResult> {
+  await requireUser();
+  const parsed = requestSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const preferences = await getMenuPreferences();
+
+  return run(
+    async () => ({
+      ai: await createRecipeFromRequest({
+        text: parsed.data,
+        servings: preferences.servings,
+        notes: preferences.notes,
+      }),
+      sourceType: "ia" as const,
+    }),
+    "No he podido crear una receta con eso. Prueba a describir el plato.",
+  );
 }
 
 export async function importFromText(input: unknown): Promise<ImportResult> {

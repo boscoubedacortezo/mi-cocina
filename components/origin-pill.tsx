@@ -1,4 +1,4 @@
-import { Camera, FileText, Globe, Music2, Pencil, type LucideIcon } from "lucide-react";
+import { Camera, FileText, Globe, Music2, Pencil, Sparkles, type LucideIcon } from "lucide-react";
 import { ThermomixIcon } from "@/components/equipment-icons";
 import { ORIGIN_LABELS, type Origin } from "@/lib/recipes/origin";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,7 @@ const ICONS: Record<Origin, LucideIcon> = {
   texto: FileText,
   foto: Camera,
   manual: Pencil,
+  ia: Sparkles,
 };
 
 /** The platforms with a look of their own; the rest share the plain pill. */
@@ -58,6 +59,7 @@ const BRAND_STYLES: Partial<Record<Origin, string>> = {
   tiktok:
     "bg-black text-white [&_svg]:[filter:drop-shadow(-1px_0_0_#25f4ee)_drop-shadow(1px_1px_0_#fe2c55)]",
   youtube: "bg-[#ff0000] text-white",
+  ia: "bg-[linear-gradient(135deg,#7c3aed_0%,#c026d3_100%)] text-white",
 };
 
 /** Where a recipe comes from, to sit on its photo, in the colours of its platform. */

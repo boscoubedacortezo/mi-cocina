@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth-server";
+import { ensureMenu } from "@/lib/menu/ensure";
+import { slotSchema } from "@/lib/menu/schema";
+import { getMenuPreferences } from "@/lib/settings/queries";
 import { contentSignature } from "@/lib/recipes/auto-meta";
 import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
 import { isCookidooImageHost } from "@/lib/recipes/cookidoo-url";
@@ -55,6 +58,31 @@ export async function createRecipe(input: unknown): Promise<ActionResult> {
 
   const { ingredients, steps, ...recipe } = parsed.data;
   await autoFillMeta(supabase, id, recipe, ingredients, steps, "missing");
+
+  // Created from a menu slot: it goes straight into it, and the user lands back on the menu.
+  const slot = slotSchema.safeParse((input as { menu_slot?: unknown } | null)?.menu_slot);
+  if (slot.success) {
+    const menuId = await ensureMenu(supabase, slot.data.weekStart);
+    if (menuId) {
+      const { servings } = await getMenuPreferences();
+      const { error: slotError } = await supabase.from("menu_items").upsert(
+        {
+          menu_id: menuId,
+          date: slot.data.date,
+          meal: slot.data.meal,
+          recipe_id: id,
+          servings,
+          away: false,
+        },
+        { onConflict: "menu_id,date,meal" },
+      );
+      if (!slotError) {
+        revalidatePath("/recetas");
+        revalidatePath("/menu");
+        redirect(`/menu?semana=${slot.data.weekStart}`);
+      }
+    }
+  }
 
   revalidatePath("/recetas");
   redirect(`/recetas/${id}`);

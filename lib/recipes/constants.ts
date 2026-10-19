@@ -24,7 +24,7 @@ export const SHOP_SECTIONS = [
 ] as const;
 export type ShopSection = (typeof SHOP_SECTIONS)[number];
 
-export const SOURCE_TYPES = ["manual", "texto", "url", "foto"] as const;
+export const SOURCE_TYPES = ["manual", "texto", "url", "foto", "ia"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 
 export const RECIPE_IMAGES_BUCKET = "recipe-images";

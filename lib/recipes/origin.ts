@@ -3,7 +3,7 @@ import { isCookidooUrl } from "./cookidoo-url";
 import { socialPlatform } from "./social-url";
 
 /** Where a recipe comes from, as the card shows it. */
-export const ORIGINS = ["cookidoo", "instagram", "tiktok", "youtube", "web", "texto", "foto", "manual"] as const;
+export const ORIGINS = ["cookidoo", "instagram", "tiktok", "youtube", "web", "texto", "foto", "manual", "ia"] as const;
 export type Origin = (typeof ORIGINS)[number];
 
 export const ORIGIN_LABELS: Record<Origin, string> = {
@@ -15,6 +15,7 @@ export const ORIGIN_LABELS: Record<Origin, string> = {
   texto: "Texto",
   foto: "Foto",
   manual: "Manual",
+  ia: "IA",
 };
 
 /**

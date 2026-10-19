@@ -22,6 +22,7 @@ export function SlotPicker({
   onSelect,
   onRegenerate,
   onAway,
+  createHref,
   onClear,
   onClose,
 }: {
@@ -35,6 +36,8 @@ export function SlotPicker({
   onRegenerate: () => void;
   /** Marks this slot "fuera de casa": no recipe, nothing generated. */
   onAway: () => void;
+  /** Where to create a new recipe that will land in this slot. */
+  createHref: string;
   onClear: () => void;
   onClose: () => void;
 }) {
@@ -106,6 +109,12 @@ export function SlotPicker({
           <MapPin /> Fuera de casa
         </Button>
 
+        <Link
+          href={createHref}
+          className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm font-medium"
+        >
+          <Sparkles className="size-4" aria-hidden /> Crear una receta nueva con IA
+        </Link>
         <p className="text-xs text-muted-foreground">
           ¿Una receta de Cookidoo que aún no tienes?{" "}
           <Link href="/recetas/nueva" className="underline underline-offset-4">

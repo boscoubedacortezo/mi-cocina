@@ -80,6 +80,7 @@ export function RecipeForm({
   sourceType = "manual",
   initial,
   importedImageUrl = null,
+  menuSlot = null,
   cancelHref,
 }: {
   userId: string;
@@ -89,6 +90,8 @@ export function RecipeForm({
   initial?: RecipeFormInitial;
   /** A photo that came with an import (Cookidoo's): shown now, saved with the recipe. */
   importedImageUrl?: string | null;
+  /** Set when creating from an empty menu slot: the saved recipe goes into it. */
+  menuSlot?: { weekStart: string; date: string; meal: "comida" | "cena" } | null;
   /** Where "Cancelar" goes back to. */
   cancelHref: string;
 }) {
@@ -241,7 +244,10 @@ export function RecipeForm({
 
     startTransition(async () => {
       let uploadedPath: string | null = null;
-      const payload: typeof parsed.data & { image_source_url?: string } = { ...parsed.data };
+      const payload: typeof parsed.data & { image_source_url?: string; menu_slot?: NonNullable<typeof menuSlot> } = {
+        ...parsed.data,
+      };
+      if (!recipeId && menuSlot) payload.menu_slot = menuSlot;
       if (!recipeId && remoteImage && !newImage && !imagePath) payload.image_source_url = remoteImage;
 
       if (newImage) {

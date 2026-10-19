@@ -23,17 +23,21 @@ import type { RecipeDraft } from "@/lib/recipes/draft";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { RecipeForm } from "../_components/recipe-form";
+import { formatDay } from "@/lib/menu/dates";
+import type { Meal } from "@/lib/menu/schema";
 import {
+  createWithAi,
   importFromImages,
   importFromText,
   importFromUrl,
   type ImportResult,
 } from "./actions";
 
-type Mode = "manual" | "texto" | "url" | "video" | "foto";
+type Mode = "manual" | "ia" | "texto" | "url" | "video" | "foto";
 
 const MODES: { id: Mode; label: string }[] = [
   { id: "manual", label: "Manual" },
+  { id: "ia", label: "IA" },
   { id: "texto", label: "Texto" },
   { id: "url", label: "URL" },
   { id: "video", label: "Vídeo" },
@@ -54,9 +58,18 @@ type Imported = {
 
 type Photo = { id: string; blob: Blob; ext: string; url: string };
 
-export function NewRecipeFlow({ userId }: { userId: string }) {
+export function NewRecipeFlow({
+  userId,
+  menuSlot = null,
+  initialMode,
+}: {
+  userId: string;
+  /** Set when coming from an empty menu slot: the saved recipe goes into it. */
+  menuSlot?: { weekStart: string; date: string; meal: Meal } | null;
+  initialMode?: Mode;
+}) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("manual");
+  const [mode, setMode] = useState<Mode>(initialMode ?? "manual");
   const [imported, setImported] = useState<Imported | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -64,6 +77,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
   const [url, setUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [transcript, setTranscript] = useState("");
+  const [request, setRequest] = useState("");
   const [photos, setPhotos] = useState<Photo[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -119,6 +133,10 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
         "No se pudo leer el portapapeles. Pega con mantener pulsado.",
       );
     }
+  }
+
+  function createFromRequest() {
+    startTransition(async () => handleResult(await createWithAi(request)));
   }
 
   function importVideo() {
@@ -210,6 +228,7 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
           sourceType={imported.sourceType}
           cancelHref="/recetas"
           importedImageUrl={imported.imageUrl}
+          menuSlot={menuSlot}
           initial={{ ...imported.draft, image_path: null, image_url: null }}
         />
       </div>
@@ -218,10 +237,23 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {menuSlot && (
+        <p
+          role="status"
+          className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm"
+        >
+          Al guardarla, esta receta se pondrá en el menú:{" "}
+          <strong>
+            {menuSlot.meal === "comida" ? "Comida" : "Cena"} ·{" "}
+            {formatDay(menuSlot.date)}
+          </strong>
+          .
+        </p>
+      )}
       <div
         role="tablist"
         aria-label="Cómo añadir la receta"
-        className="grid grid-cols-5 gap-1 rounded-lg bg-muted p-1"
+        className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1"
       >
         {MODES.map(({ id, label }) => (
           <button
@@ -243,7 +275,34 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
       </div>
 
       {mode === "manual" && (
-        <RecipeForm userId={userId} cancelHref="/recetas" />
+        <RecipeForm userId={userId} cancelHref="/recetas" menuSlot={menuSlot} />
+      )}
+
+      {mode === "ia" && (
+        <section className="flex flex-col gap-3">
+          <Label htmlFor="ai-request">¿Qué quieres cocinar?</Label>
+          <Textarea
+            id="ai-request"
+            value={request}
+            onChange={(e) => setRequest(e.target.value)}
+            rows={4}
+            maxLength={500}
+            placeholder="Tortilla a la francesa, crema de calabaza para 2 sin nata…"
+            disabled={pending}
+          />
+          <p className="text-sm text-muted-foreground">
+            Escríbelo o dicta con el micrófono del teclado. La IA propone
+            ingredientes, cantidades y pasos, y antes de guardar los revisas. Si
+            indicas raciones, las usa; si no, las de tus preferencias del menú.
+          </p>
+          <ImportButton
+            pending={pending}
+            disabled={request.trim().length < 3}
+            onClick={createFromRequest}
+            label="Crear receta con IA"
+            pendingLabel="Creando la receta… (unos segundos)"
+          />
+        </section>
       )}
 
       {mode === "texto" && (
@@ -292,9 +351,10 @@ export function NewRecipeFlow({ userId }: { userId: string }) {
           <p className="text-sm text-muted-foreground">
             Sirve también para recetas de Cookidoo (con foto, ingredientes y
             tiempos; los pasos los tienes allí) y para publicaciones de
-            Instagram, TikTok y YouTube que traen la receta escrita. Si la receta se
-            explica hablando en el vídeo, usa la pestaña Vídeo. Algunas webs
-            bloquean la descarga; si falla, pega el texto de la receta.
+            Instagram, TikTok y YouTube que traen la receta escrita. Si la
+            receta se explica hablando en el vídeo, usa la pestaña Vídeo.
+            Algunas webs bloquean la descarga; si falla, pega el texto de la
+            receta.
           </p>
           <ImportButton
             pending={pending}
@@ -453,10 +513,14 @@ function ImportButton({
   pending,
   disabled,
   onClick,
+  label = "Importar con IA",
+  pendingLabel = "Leyendo la receta… (unos segundos)",
 }: {
   pending: boolean;
   disabled: boolean;
   onClick: () => void;
+  label?: string;
+  pendingLabel?: string;
 }) {
   return (
     <Button
@@ -467,12 +531,11 @@ function ImportButton({
     >
       {pending ? (
         <>
-          <Loader2 className="animate-spin" /> Leyendo la receta… (unos
-          segundos)
+          <Loader2 className="animate-spin" /> {pendingLabel}
         </>
       ) : (
         <>
-          <Sparkles /> Importar con IA
+          <Sparkles /> {label}
         </>
       )}
     </Button>

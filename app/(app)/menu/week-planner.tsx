@@ -393,6 +393,12 @@ export function WeekPlanner({
               closePicker: true,
             })
           }
+          createHref={`/recetas/nueva?${new URLSearchParams({
+            modo: "ia",
+            semana: weekStart,
+            fecha: picker.date,
+            comida: picker.meal,
+          })}`}
           onAway={() =>
             run(() => setSlotAway({ slot: slotInput(picker), away: true }), {
               closePicker: true,
