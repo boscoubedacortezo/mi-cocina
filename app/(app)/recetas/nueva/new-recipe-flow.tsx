@@ -299,11 +299,11 @@ export function NewRecipeFlow({
             onChange={(e) => setRequest(e.target.value)}
             rows={4}
             maxLength={500}
-            placeholder="Tortilla a la francesa, crema de calabaza para 2 sin nata…"
+            placeholder="Tortilla a la francesa · crema de calabaza para 2 · algo con pollo, arroz y pimientos…"
             disabled={pending}
           />
           <p className="text-sm text-muted-foreground">
-            Escríbelo o dicta con el micrófono del teclado. La IA propone
+            Escríbelo o dicta con el micrófono del teclado. También sirve para usar lo que tengas en casa («con pollo y arroz»). La IA propone
             ingredientes, cantidades y pasos, y antes de guardar los revisas. Si
             indicas raciones, las usa; si no, las de tus preferencias del menú.
           </p>

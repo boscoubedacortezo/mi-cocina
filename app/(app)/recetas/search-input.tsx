@@ -29,7 +29,7 @@ export function SearchInput({
         name="q"
         type="search"
         defaultValue={defaultValue}
-        placeholder="Buscar receta"
+        placeholder="Buscar por nombre o ingrediente"
         aria-label="Buscar receta"
         className="pl-8"
         onChange={(event) => {

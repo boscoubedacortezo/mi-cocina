@@ -270,6 +270,54 @@ async function runPlanner(
   return done(`${plan.notes ?? ""}${warning}`.trim() || null);
 }
 
+/** Copies the previous week's menu into this one, only where this week is still empty. */
+export async function copyPreviousWeek(input: unknown): Promise<MenuResult> {
+  const { supabase } = await requireUser();
+  const parsed = weekStartSchema.safeParse(input);
+  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  const weekStart = parsed.data;
+
+  const { data: previous } = await supabase
+    .from("menus")
+    .select("id")
+    .eq("week_start", addDays(weekStart, -7))
+    .maybeSingle();
+  if (!previous) return fail("La semana anterior no tiene menú.");
+  const { data: items } = await supabase
+    .from("menu_items")
+    .select("date, meal, recipe_id, servings, away")
+    .eq("menu_id", previous.id);
+  const source = (items ?? []) as {
+    date: string;
+    meal: (typeof MEALS)[number];
+    recipe_id: string | null;
+    servings: number;
+    away: boolean;
+  }[];
+  if (source.length === 0) return fail("La semana anterior está vacía.");
+
+  const menuId = await ensureMenu(supabase, weekStart);
+  if (!menuId) return fail(GENERIC_ERROR);
+  const rows = source
+    .filter((item) => item.recipe_id || item.away)
+    .map((item) => ({
+      menu_id: menuId,
+      date: addDays(item.date, 7),
+      meal: item.meal,
+      recipe_id: item.recipe_id,
+      servings: item.servings,
+      away: item.away,
+    }));
+  // Never overwrite what is already in this week.
+  const { error } = await supabase
+    .from("menu_items")
+    .upsert(rows, { onConflict: "menu_id,date,meal", ignoreDuplicates: true });
+  if (error) return fail(GENERIC_ERROR);
+
+  revalidatePath("/menu");
+  return done(`Copiados ${rows.length} huecos de la semana anterior.`);
+}
+
 /** Fills the week's empty slots with AI, keeping what the user already set. */
 export async function generateWeek(input: unknown): Promise<MenuResult> {
   const { supabase } = await requireUser();

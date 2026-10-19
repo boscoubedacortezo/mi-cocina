@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Clock, ExternalLink, Pencil } from "lucide-react";
+import { ArrowLeft, Clock, ExternalLink, Flame, Pencil } from "lucide-react";
 import { ThermomixIcon } from "@/components/equipment-icons";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -130,6 +130,16 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
                 <ThermomixIcon className="size-5" />
               </Link>
             )
+          )}
+          {recipe.steps.length > 0 && (
+            <Link
+              href={`/recetas/${recipe.id}/cocinar`}
+              className={buttonVariants({ variant: "outline", size: "icon-lg", className: "size-10" })}
+              aria-label="Modo cocinar"
+              title="Modo cocinar: paso a paso con cronómetros"
+            >
+              <Flame className="size-5" />
+            </Link>
           )}
           <Link
             href={`/recetas/${recipe.id}/editar`}

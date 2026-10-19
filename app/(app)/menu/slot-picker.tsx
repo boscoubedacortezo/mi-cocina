@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, MapPin, Search, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
+import { History, Loader2, MapPin, Repeat, Search, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
 import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,28 @@ export function SlotPicker({
       .sort((a, b) => b.score - a.score || a.index - b.index)
       .map((item) => item.recipe);
   }, [recipes, query]);
+
+  // What the user plans most, and what they planned last: two taps to repeat a classic.
+  const habituales = useMemo(
+    () =>
+      recipes
+        .filter((recipe) => recipe.uses >= 2)
+        .sort((a, b) => b.uses - a.uses || (b.lastUsed ?? "").localeCompare(a.lastUsed ?? ""))
+        .slice(0, 6),
+    [recipes],
+  );
+  const recientes = useMemo(
+    () =>
+      recipes
+        .filter((recipe) => recipe.lastUsed && !habituales.includes(recipe))
+        .sort((a, b) => (b.lastUsed ?? "").localeCompare(a.lastUsed ?? ""))
+        .slice(0, 6),
+    [recipes, habituales],
+  );
+  const quickRows = [
+    { label: "Habituales", Icon: Repeat, items: habituales },
+    { label: "Recientes", Icon: History, items: recientes },
+  ].filter((row) => row.items.length > 0);
 
   return (
     <dialog
@@ -157,6 +179,27 @@ export function SlotPicker({
             className="pl-8"
           />
         </div>
+        {query.trim() === "" &&
+          quickRows.map(({ label, Icon, items }) => (
+            <div key={label} className="flex flex-col gap-1.5">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Icon className="size-3.5" aria-hidden /> {label}
+              </p>
+              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+                {items.map((recipe) => (
+                  <button
+                    key={recipe.id}
+                    type="button"
+                    disabled={pending}
+                    onClick={() => onSelect(recipe.id)}
+                    className="max-w-48 shrink-0 truncate rounded-full border bg-background px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-60"
+                  >
+                    {recipe.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
       </div>
 
       <ul className="flex-1 overflow-y-auto px-4 pb-2">

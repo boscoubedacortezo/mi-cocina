@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
+  CopyPlus,
   Loader2,
   MapPin,
   Minus,
@@ -25,6 +26,7 @@ import { cn } from "@/lib/utils";
 import {
   clearSlot,
   clearWeek,
+  copyPreviousWeek,
   generateWeek,
   regenerateSlot,
   setSlot,
@@ -150,6 +152,18 @@ export function WeekPlanner({
             Pensando el menú… (hasta un minuto)
           </p>
         )}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-lg"
+          className="size-10"
+          disabled={pending || emptyCount === 0}
+          onClick={() => run(() => copyPreviousWeek(weekStart))}
+          aria-label="Copiar la semana anterior"
+          title="Copiar la semana anterior"
+        >
+          <CopyPlus className="size-5" />
+        </Button>
         <Button
           type="button"
           size="icon-lg"
