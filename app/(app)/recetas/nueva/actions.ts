@@ -101,7 +101,7 @@ const requestSchema = z
   .string()
   .trim()
   .min(3, "Cuéntame qué quieres cocinar.")
-  .max(500, "Es demasiado largo (máximo 500 caracteres).");
+  .max(4000, "Es demasiado largo (máximo 4.000 caracteres).");
 
 /** Writes a recipe from a short description ("tortilla a la francesa"); it goes to review. */
 export async function createWithAi(input: unknown): Promise<ImportResult> {

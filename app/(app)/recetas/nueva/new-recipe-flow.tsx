@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { DictationButton } from "@/components/dictation-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -293,19 +294,28 @@ export function NewRecipeFlow({
       {mode === "ia" && (
         <section className="flex flex-col gap-3">
           <Label htmlFor="ai-request">¿Qué quieres cocinar?</Label>
-          <Textarea
-            id="ai-request"
-            value={request}
-            onChange={(e) => setRequest(e.target.value)}
-            rows={4}
-            maxLength={500}
-            placeholder="Tortilla a la francesa · crema de calabaza para 2 · algo con pollo, arroz y pimientos…"
-            disabled={pending}
-          />
+          <div className="flex items-start gap-2">
+            <Textarea
+              id="ai-request"
+              value={request}
+              onChange={(e) => setRequest(e.target.value)}
+              rows={6}
+              maxLength={4000}
+              placeholder="Tortilla a la francesa · crema de calabaza para 2 · algo con pollo, arroz y pimientos…"
+              disabled={pending}
+            />
+            <DictationButton
+              value={request}
+              onChange={setRequest}
+              disabled={pending}
+            />
+          </div>
           <p className="text-sm text-muted-foreground">
-            Escríbelo o dicta con el micrófono del teclado. También sirve para usar lo que tengas en casa («con pollo y arroz»). La IA propone
-            ingredientes, cantidades y pasos, y antes de guardar los revisas. Si
-            indicas raciones, las usa; si no, las de tus preferencias del menú.
+            Escríbelo o dicta con el micrófono de aquí, que sigue escuchando
+            hasta que lo pares. También sirve para usar lo que tengas en casa
+            («con pollo y arroz»). La IA propone ingredientes, cantidades y
+            pasos, y antes de guardar los revisas. Si indicas raciones, las usa;
+            si no, las de tus preferencias del menú.
           </p>
           <ImportButton
             pending={pending}
@@ -319,16 +329,19 @@ export function NewRecipeFlow({
 
       {mode === "texto" && (
         <section className="flex flex-col gap-3">
-          <Label htmlFor="import-text">Pega la receta</Label>
-          <Textarea
-            id="import-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={12}
-            maxLength={30_000}
-            placeholder="Ingredientes, pasos… tal como la tengas (de un mensaje, un PDF, una web…)."
-            disabled={pending}
-          />
+          <Label htmlFor="import-text">Pega o dicta la receta</Label>
+          <div className="flex items-start gap-2">
+            <Textarea
+              id="import-text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={12}
+              maxLength={30_000}
+              placeholder="Ingredientes, pasos… tal como la tengas (de un mensaje, un PDF, una web…)."
+              disabled={pending}
+            />
+            <DictationButton value={text} onChange={setText} disabled={pending} />
+          </div>
           <ImportButton
             pending={pending}
             disabled={text.trim().length < 40}
