@@ -76,6 +76,7 @@ export async function createRecipe(input: unknown): Promise<ActionResult> {
           recipe_id: id,
           servings,
           away: false,
+          leftovers: false,
         },
         { onConflict: "menu_id,date,meal" },
       );

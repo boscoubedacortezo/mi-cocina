@@ -40,7 +40,7 @@ async function assignSlot(
   const { error } = await supabase
     .from("menu_items")
     .upsert(
-      { menu_id: menuId, date: slot.date, meal: slot.meal, recipe_id: recipeId, servings, away: false },
+      { menu_id: menuId, date: slot.date, meal: slot.meal, recipe_id: recipeId, servings, away: false, leftovers: false },
       { onConflict: "menu_id,date,meal" },
     );
   return !error;
@@ -58,8 +58,8 @@ export async function setSlot(input: unknown): Promise<MenuResult> {
   return done();
 }
 
-/** Marks a slot "fuera de casa" (replacing its recipe); `clearSlot` undoes it. */
-export async function setSlotAway(input: unknown): Promise<MenuResult> {
+/** Marks a slot with no recipe, "fuera de casa" or "sobras" (replacing its recipe). */
+async function markSlotWithoutRecipe(input: unknown, kind: "away" | "leftovers"): Promise<MenuResult> {
   const { supabase } = await requireUser();
   const parsed = slotAwaySchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0].message);
@@ -67,16 +67,31 @@ export async function setSlotAway(input: unknown): Promise<MenuResult> {
 
   const menuId = await ensureMenu(supabase, slot.weekStart);
   if (!menuId) return fail(GENERIC_ERROR);
-  const { error } = await supabase
-    .from("menu_items")
-    .upsert(
-      { menu_id: menuId, date: slot.date, meal: slot.meal, recipe_id: null, away: true },
-      { onConflict: "menu_id,date,meal" },
-    );
+  const { error } = await supabase.from("menu_items").upsert(
+    {
+      menu_id: menuId,
+      date: slot.date,
+      meal: slot.meal,
+      recipe_id: null,
+      away: kind === "away",
+      leftovers: kind === "leftovers",
+    },
+    { onConflict: "menu_id,date,meal" },
+  );
   if (error) return fail(GENERIC_ERROR);
 
   revalidatePath("/menu");
   return done();
+}
+
+/** Marks a slot "fuera de casa"; `clearSlot` undoes it. */
+export async function setSlotAway(input: unknown): Promise<MenuResult> {
+  return markSlotWithoutRecipe(input, "away");
+}
+
+/** Marks a slot "sobras o improvisado": no recipe, nothing on the shopping list. */
+export async function setSlotLeftovers(input: unknown): Promise<MenuResult> {
+  return markSlotWithoutRecipe(input, "leftovers");
 }
 
 export async function clearSlot(input: unknown): Promise<MenuResult> {
@@ -193,7 +208,8 @@ async function runPlanner(
     .delete()
     .eq("menu_id", menuId)
     .is("recipe_id", null)
-    .eq("away", false);
+    .eq("away", false)
+    .eq("leftovers", false);
   const fixedAll = await loadFixed(supabase, menuId);
   if (!fixedAll) return fail(GENERIC_ERROR);
 
@@ -201,12 +217,12 @@ async function runPlanner(
     preferences.meals.map((meal) => slotKey(date, meal)),
   );
   const targetKey = target ? slotKey(target.date, target.meal) : null;
-  // Slots away from home are neither fixed recipes nor empty: the AI leaves them alone.
+  // Slots away from home (or with leftovers) are neither fixed recipes nor empty: the AI leaves them alone.
   const { data: awayRows } = await supabase
     .from("menu_items")
     .select("date, meal")
     .eq("menu_id", menuId)
-    .eq("away", true);
+    .or("away.eq.true,leftovers.eq.true");
   const awayKeys = ((awayRows ?? []) as { date: string; meal: (typeof MEALS)[number] }[]).map((row) =>
     slotKey(row.date, row.meal),
   );
@@ -255,6 +271,7 @@ async function runPlanner(
       meal,
       recipe_id: recipeId,
       away: false,
+      leftovers: false,
       servings: servingsBySlot.get(key) ?? preferences.servings,
     };
   });
@@ -285,7 +302,7 @@ export async function copyPreviousWeek(input: unknown): Promise<MenuResult> {
   if (!previous) return fail("La semana anterior no tiene menú.");
   const { data: items } = await supabase
     .from("menu_items")
-    .select("date, meal, recipe_id, servings, away")
+    .select("date, meal, recipe_id, servings, away, leftovers")
     .eq("menu_id", previous.id);
   const source = (items ?? []) as {
     date: string;
@@ -293,13 +310,14 @@ export async function copyPreviousWeek(input: unknown): Promise<MenuResult> {
     recipe_id: string | null;
     servings: number;
     away: boolean;
+    leftovers: boolean;
   }[];
   if (source.length === 0) return fail("La semana anterior está vacía.");
 
   const menuId = await ensureMenu(supabase, weekStart);
   if (!menuId) return fail(GENERIC_ERROR);
   const rows = source
-    .filter((item) => item.recipe_id || item.away)
+    .filter((item) => item.recipe_id || item.away || item.leftovers)
     .map((item) => ({
       menu_id: menuId,
       date: addDays(item.date, 7),
@@ -307,6 +325,7 @@ export async function copyPreviousWeek(input: unknown): Promise<MenuResult> {
       recipe_id: item.recipe_id,
       servings: item.servings,
       away: item.away,
+      leftovers: item.leftovers,
     }));
   // Never overwrite what is already in this week.
   const { error } = await supabase

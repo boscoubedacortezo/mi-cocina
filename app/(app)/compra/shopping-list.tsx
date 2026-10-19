@@ -2,7 +2,7 @@
 
 import { useMemo, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ClipboardCopy, Plus, Trash2, Undo2, X } from "lucide-react";
+import { Check, ClipboardCopy, House, Plus, Trash2, Undo2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import {
   setShoppingRange,
   toggleManualItem,
 } from "./actions";
+import { addToPantry } from "../ajustes/actions";
 
 type Preset = { label: string; start: string; end: string };
 
@@ -437,6 +438,24 @@ export function ShoppingList({
                     aria-label={`Volver a añadir ${item.name}`}
                   >
                     <Undo2 /> Añadir
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={pending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        const result = await addToPantry(item.name);
+                        if (result.ok) {
+                          toast.success(`«${capitalize(item.name)}» está en tu despensa: no volverá a salir.`);
+                        } else toast.error(result.error);
+                      })
+                    }
+                    aria-label={`Guardar ${item.name} en la despensa (lo tengo siempre)`}
+                    title="Lo tengo siempre: a la despensa"
+                  >
+                    <House />
                   </Button>
                 </li>
               );

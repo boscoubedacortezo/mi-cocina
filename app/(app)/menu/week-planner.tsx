@@ -7,6 +7,7 @@ import {
   CopyPlus,
   Loader2,
   MapPin,
+  Recycle,
   Minus,
   Moon,
   Plus,
@@ -31,6 +32,7 @@ import {
   regenerateSlot,
   setSlot,
   setSlotAway,
+  setSlotLeftovers,
   setSlotServings,
   type MenuResult,
 } from "./actions";
@@ -86,6 +88,10 @@ export function WeekPlanner({
     () => new Set(items.filter((i) => i.away).map((i) => slotKey(i.date, i.meal))),
     [items],
   );
+  const leftoverKeys = useMemo(
+    () => new Set(items.filter((i) => i.leftovers).map((i) => slotKey(i.date, i.meal))),
+    [items],
+  );
   const usedIds = useMemo(
     () => new Set(items.flatMap((i) => (i.recipe ? [i.recipe.id] : []))),
     [items],
@@ -96,13 +102,17 @@ export function WeekPlanner({
       (meal) =>
         meals.includes(meal) ||
         bySlot.has(slotKey(date, meal)) ||
-        awayKeys.has(slotKey(date, meal)),
+        awayKeys.has(slotKey(date, meal)) ||
+        leftoverKeys.has(slotKey(date, meal)),
     );
   const emptyCount = days.reduce(
     (count, { date }) =>
       count +
       meals.filter(
-        (meal) => !bySlot.has(slotKey(date, meal)) && !awayKeys.has(slotKey(date, meal)),
+        (meal) =>
+          !bySlot.has(slotKey(date, meal)) &&
+          !awayKeys.has(slotKey(date, meal)) &&
+          !leftoverKeys.has(slotKey(date, meal)),
       ).length,
     0,
   );
@@ -263,7 +273,23 @@ export function WeekPlanner({
                           })()}
                           {MEAL_LABELS[meal]}
                         </span>
-                        {awayKeys.has(slotKey(date, meal)) ? (
+                        {leftoverKeys.has(slotKey(date, meal)) ? (
+                          <>
+                            <span className="flex flex-1 items-center gap-2 text-muted-foreground">
+                              <Recycle className="size-4" aria-hidden /> Sobras o improvisado
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={pending}
+                              onClick={() => run(() => clearSlot(slotInput(slot)))}
+                              aria-label={`Quitar «sobras» de la ${MEAL_LABELS[meal].toLowerCase()}`}
+                            >
+                              <X />
+                            </Button>
+                          </>
+                        ) : awayKeys.has(slotKey(date, meal)) ? (
                           <>
                             <span className="flex flex-1 items-center gap-2 text-muted-foreground">
                               <MapPin className="size-4" aria-hidden /> Fuera de casa
@@ -416,6 +442,11 @@ export function WeekPlanner({
             fecha: picker.date,
             comida: picker.meal,
           })}`}
+          onLeftovers={() =>
+            run(() => setSlotLeftovers({ slot: slotInput(picker), away: true }), {
+              closePicker: true,
+            })
+          }
           onAway={() =>
             run(() => setSlotAway({ slot: slotInput(picker), away: true }), {
               closePicker: true,

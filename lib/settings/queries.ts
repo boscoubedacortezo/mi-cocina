@@ -20,3 +20,14 @@ export async function getMenuPreferences(): Promise<MenuPreferences> {
   }
   return parseMenuPreferences(data?.menu_preferences);
 }
+
+/** The staples the user always has: they never go in the shopping list. */
+export async function getPantry(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("user_settings").select("pantry").maybeSingle();
+  if (error) {
+    console.error("[settings] could not read the pantry:", error.message);
+    return [];
+  }
+  return ((data?.pantry as string[] | undefined) ?? []).filter(Boolean);
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { History, Loader2, MapPin, Repeat, Search, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
+import { History, Loader2, MapPin, Recycle, Repeat, Search, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
 import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export function SlotPicker({
   onSelect,
   onRegenerate,
   onAway,
+  onLeftovers,
   createHref,
   onClear,
   onClose,
@@ -39,6 +40,8 @@ export function SlotPicker({
   onRegenerate: () => void;
   /** Marks this slot "fuera de casa": no recipe, nothing generated. */
   onAway: () => void;
+  /** Marks this slot "sobras o improvisado": no recipe, nothing on the shopping list. */
+  onLeftovers: () => void;
   /** Where to create a new recipe that will land in this slot. */
   createHref: string;
   onClear: () => void;
@@ -118,7 +121,7 @@ export function SlotPicker({
       </div>
 
       <div className="flex flex-col gap-3 p-4 pb-2">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           <button
             type="button"
             onClick={() => {
@@ -156,6 +159,17 @@ export function SlotPicker({
           >
             <MapPin className="size-5" aria-hidden />
             Fuera
+          </button>
+          <button
+            type="button"
+            onClick={onLeftovers}
+            disabled={pending}
+            title="Sobras o improvisado: sin receta y sin compra"
+            aria-label="Sobras o improvisado"
+            className={tile}
+          >
+            <Recycle className="size-5" aria-hidden />
+            Sobras
           </button>
         </div>
         <p className="text-xs text-muted-foreground">

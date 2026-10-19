@@ -1,6 +1,7 @@
 import "server-only";
 import type { requireUser } from "@/lib/auth-server";
 import { aggregateIngredients, type ShoppingLine } from "./aggregate";
+import { inPantry } from "./pantry";
 
 type Supabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
 
@@ -30,8 +31,12 @@ export async function computeShoppingLines(supabase: Supabase, range: { start: s
     .lte("date", range.end);
   if (error) throw new Error("No se pudo calcular la lista de la compra.");
 
+  // What the user always has never goes in the list (a missing column or table: no pantry).
+  const pantryRow = await supabase.from("user_settings").select("pantry").maybeSingle();
+  const pantry = ((pantryRow.data?.pantry as string[] | undefined) ?? []).filter(Boolean);
+
   const rows = data as unknown as MenuRow[];
-  const lines = aggregateIngredients(
+  const allLines = aggregateIngredients(
     rows.flatMap((row) => {
       const recipe = Array.isArray(row.recipes) ? row.recipes[0] : row.recipes;
       if (!recipe?.servings) return [];
@@ -49,5 +54,6 @@ export async function computeShoppingLines(supabase: Supabase, range: { start: s
       ];
     }),
   );
+  const lines = allLines.filter((line) => !inPantry(line.name, pantry));
   return { lines, plannedMeals: rows.length };
 }
