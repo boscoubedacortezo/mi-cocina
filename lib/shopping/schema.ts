@@ -7,7 +7,8 @@ export const manualItemSchema = z.object({
   name: z.string().trim().min(1, "Escribe el nombre del artículo.").max(120),
   quantity: z.number("La cantidad debe ser un número.").min(0).max(1_000_000).nullable(),
   unit: z.enum(UNITS).nullable(),
-  shop_section: z.enum(SHOP_SECTIONS),
+  /** Decided by the server from the name: the dictionary first, the AI for what it does not know. */
+  shop_section: z.enum(SHOP_SECTIONS).optional(),
 });
 
 /** Longest range one list can cover. */

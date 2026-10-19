@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, SlidersHorizontal, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -41,10 +41,20 @@ function Group({
   onSelect: (value: string | undefined) => void;
 }) {
   if (options.length === 0) return null;
+  const current = options.find((option) => option.value === selected);
   return (
-    <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1 text-sm font-medium">{title}</legend>
-      <div className="flex flex-wrap gap-2">
+    <details className="group rounded-xl border" open={Boolean(selected)}>
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
+        <span className="flex-1 text-sm font-medium">{title}</span>
+        {current && (
+          <Badge className="px-2.5 py-0.5 text-xs">{current.label}</Badge>
+        )}
+        <ChevronDown
+          className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+          aria-hidden
+        />
+      </summary>
+      <div className="flex flex-wrap gap-2 border-t px-3 py-3">
         {options.map((option) => {
           const active = selected === option.value;
           return (
@@ -54,14 +64,17 @@ function Group({
               aria-pressed={active}
               onClick={() => onSelect(active ? undefined : option.value)}
             >
-              <Badge variant={active ? "default" : "outline"} className="px-3 py-1 text-sm">
+              <Badge
+                variant={active ? "default" : "outline"}
+                className="px-3 py-1 text-sm"
+              >
                 {option.label}
               </Badge>
             </button>
           );
         })}
       </div>
-    </fieldset>
+    </details>
   );
 }
 
@@ -90,7 +103,8 @@ function Sheet({
   function apply() {
     const next = new URLSearchParams();
     if (q) next.set("q", q);
-    for (const [key, value] of Object.entries(values)) if (value) next.set(key, value);
+    for (const [key, value] of Object.entries(values))
+      if (value) next.set(key, value);
     const qs = next.toString();
     router.push(qs ? `/recetas?${qs}` : "/recetas");
     dialog.current?.close();
@@ -109,16 +123,42 @@ function Sheet({
     >
       <div className="flex items-center justify-between gap-2 border-b p-4">
         <h2 className="font-heading font-semibold">Filtros</h2>
-        <Button type="button" variant="ghost" size="icon" onClick={() => dialog.current?.close()} aria-label="Cerrar">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => dialog.current?.close()}
+          aria-label="Cerrar"
+        >
           <X />
         </Button>
       </div>
 
-      <div className="flex flex-1 flex-col gap-5 overflow-y-auto p-4">
-        <Group title="Tipo de plato" options={courses} selected={values.tipo} onSelect={set("tipo")} />
-        <Group title="Ingrediente principal" options={mains} selected={values.principal} onSelect={set("principal")} />
-        <Group title="Cómo se cocina" options={cooking} selected={values.cocina} onSelect={set("cocina")} />
-        <Group title="Origen" options={origins} selected={values.origen} onSelect={set("origen")} />
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
+        <Group
+          title="Tipo de plato"
+          options={courses}
+          selected={values.tipo}
+          onSelect={set("tipo")}
+        />
+        <Group
+          title="Ingrediente principal"
+          options={mains}
+          selected={values.principal}
+          onSelect={set("principal")}
+        />
+        <Group
+          title="Cómo se cocina"
+          options={cooking}
+          selected={values.cocina}
+          onSelect={set("cocina")}
+        />
+        <Group
+          title="Origen"
+          options={origins}
+          selected={values.origen}
+          onSelect={set("origen")}
+        />
         <Group
           title="Etiquetas"
           options={tags.map((tag) => ({ value: tag, label: tag }))}
@@ -128,7 +168,13 @@ function Sheet({
       </div>
 
       <div className="grid grid-cols-2 gap-2 border-t p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        <Button type="button" variant="outline" size="lg" onClick={() => setValues({})} disabled={!anySelected}>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          onClick={() => setValues({})}
+          disabled={!anySelected}
+        >
           Limpiar
         </Button>
         <Button type="button" size="lg" onClick={apply}>

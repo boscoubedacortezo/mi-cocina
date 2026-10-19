@@ -26,7 +26,6 @@ import {
   MAIN_INGREDIENT_LABELS,
   MAIN_INGREDIENTS,
   RECIPE_IMAGES_BUCKET,
-  SHOP_SECTIONS,
   UNITS,
   type Course,
   type Equipment,
@@ -498,7 +497,7 @@ export function RecipeForm({
               <li key={row.key} className="flex flex-col gap-2 rounded-xl border p-3">
                 <Input
                   value={row.name}
-                  onChange={(e) => update({ name: e.target.value })}
+                  onChange={(e) => update({ name: e.target.value, shop_section: "Otros" })}
                   placeholder="Ingrediente"
                   aria-label={`Ingrediente ${index + 1}`}
                   maxLength={120}
@@ -525,20 +524,6 @@ export function RecipeForm({
                     ))}
                   </select>
                 </div>
-                <select
-                  value={row.shop_section}
-                  onChange={(e) =>
-                    update({ shop_section: e.target.value as ShopSection })
-                  }
-                  className={selectClass}
-                  aria-label="Sección del súper"
-                >
-                  {SHOP_SECTIONS.map((section) => (
-                    <option key={section} value={section}>
-                      {section}
-                    </option>
-                  ))}
-                </select>
                 <div className="flex items-center justify-between">
                   <label className="flex items-center gap-2 text-sm">
                     <input

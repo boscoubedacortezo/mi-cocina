@@ -5,11 +5,16 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Camera,
+  Clapperboard,
   ClipboardPaste,
   ExternalLink,
+  FileText,
+  Link2,
   Loader2,
+  Pencil,
   Sparkles,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -35,13 +40,13 @@ import {
 
 type Mode = "manual" | "ia" | "texto" | "url" | "video" | "foto";
 
-const MODES: { id: Mode; label: string }[] = [
-  { id: "manual", label: "Manual" },
-  { id: "ia", label: "IA" },
-  { id: "texto", label: "Texto" },
-  { id: "url", label: "URL" },
-  { id: "video", label: "Vídeo" },
-  { id: "foto", label: "Foto" },
+const MODES: { id: Mode; label: string; Icon: LucideIcon }[] = [
+  { id: "manual", label: "Manual", Icon: Pencil },
+  { id: "ia", label: "IA", Icon: Sparkles },
+  { id: "texto", label: "Texto", Icon: FileText },
+  { id: "url", label: "Enlace", Icon: Link2 },
+  { id: "video", label: "Vídeo", Icon: Clapperboard },
+  { id: "foto", label: "Foto", Icon: Camera },
 ];
 
 const MAX_PHOTOS = 3;
@@ -253,25 +258,32 @@ export function NewRecipeFlow({
       <div
         role="tablist"
         aria-label="Cómo añadir la receta"
-        className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1"
+        className="flex gap-1 rounded-xl bg-muted p-1"
       >
-        {MODES.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={mode === id}
-            disabled={pending}
-            onClick={() => setMode(id)}
-            className={cn(
-              "rounded-md py-1.5 text-sm text-muted-foreground transition-colors",
-              mode === id &&
-                "bg-background font-medium text-foreground shadow-sm",
-            )}
-          >
-            {label}
-          </button>
-        ))}
+        {MODES.map(({ id, label, Icon }) => {
+          const active = mode === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-label={label}
+              title={label}
+              disabled={pending}
+              onClick={() => setMode(id)}
+              className={cn(
+                "flex h-10 items-center justify-center gap-1.5 rounded-lg text-muted-foreground transition-all",
+                active
+                  ? "flex-[2.2] bg-background px-2 text-sm font-medium text-foreground shadow-sm"
+                  : "flex-1",
+              )}
+            >
+              <Icon className="size-5 shrink-0" aria-hidden />
+              {active && label}
+            </button>
+          );
+        })}
       </div>
 
       {mode === "manual" && (

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth-server";
+import { resolveShopSections } from "@/lib/recipes/resolve-sections";
 import { addDays, todayInMadrid } from "@/lib/menu/dates";
 import { DEFAULT_RANGE_DAYS, lineSchema, manualItemSchema, rangeSchema } from "@/lib/shopping/schema";
 
@@ -104,9 +105,12 @@ export async function addShoppingItem(input: unknown): Promise<ShoppingResult> {
   const listId = await ensureList(supabase, parsed.data.range);
   if (!listId) return fail(GENERIC_ERROR);
 
+  const [item] = await resolveShopSections([
+    { ...parsed.data.item, shop_section: parsed.data.item.shop_section ?? "Otros" },
+  ]);
   const { error } = await supabase
     .from("shopping_items")
-    .insert({ ...parsed.data.item, list_id: listId, checked: false, is_manual: true });
+    .insert({ ...item, list_id: listId, checked: false, is_manual: true });
   if (error) return fail(GENERIC_ERROR);
 
   revalidatePath("/compra");

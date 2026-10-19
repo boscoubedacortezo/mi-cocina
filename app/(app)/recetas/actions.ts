@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth-server";
 import { ensureMenu } from "@/lib/menu/ensure";
 import { slotSchema } from "@/lib/menu/schema";
+import { resolveShopSections } from "@/lib/recipes/resolve-sections";
 import { getMenuPreferences } from "@/lib/settings/queries";
 import { contentSignature } from "@/lib/recipes/auto-meta";
 import { RECIPE_IMAGES_BUCKET } from "@/lib/recipes/constants";
@@ -30,6 +31,8 @@ export async function createRecipe(input: unknown): Promise<ActionResult> {
   const parsed = recipeInputSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   if (!ownsImage(parsed.data.image_path, userId)) return { error: GENERIC_ERROR };
+  // The supermarket section is never asked: it comes from the ingredient's name.
+  parsed.data.ingredients = await resolveShopSections(parsed.data.ingredients);
 
   // An imported recipe can bring its own photo (Cookidoo's): saved here, best effort,
   // so abandoning the review never leaves a stray file in Storage.
@@ -95,6 +98,7 @@ export async function updateRecipe(
   const { supabase, userId } = await requireUser();
   const parsed = recipeInputSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+  parsed.data.ingredients = await resolveShopSections(parsed.data.ingredients);
   const { ingredients, steps, ...recipe } = parsed.data;
   if (!ownsImage(recipe.image_path, userId)) return { error: GENERIC_ERROR };
 

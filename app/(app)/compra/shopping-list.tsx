@@ -13,7 +13,6 @@ import { daysInRange, formatDateRange, mondayOf } from "@/lib/menu/dates";
 import {
   SHOP_SECTIONS,
   UNITS,
-  type ShopSection,
   type Unit,
 } from "@/lib/recipes/constants";
 import { SECTION_DOT } from "@/lib/shopping/colors";
@@ -76,7 +75,6 @@ export function ShoppingList({
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState<Unit | "">("");
-  const [section, setSection] = useState<ShopSection>("Otros");
 
   const groups = useMemo(
     () =>
@@ -141,7 +139,6 @@ export function ShoppingList({
           name,
           quantity: parsedQuantity,
           unit: unit || null,
-          shop_section: section,
         },
       });
       if (!result.ok) {
@@ -308,19 +305,7 @@ export function ShoppingList({
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <select
-              value={section}
-              onChange={(e) => setSection(e.target.value as ShopSection)}
-              className={selectClass}
-              aria-label="Sección del súper"
-            >
-              {SHOP_SECTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+          <div className="flex justify-end">
             <Button type="submit" disabled={pending || !name.trim()}>
               <Plus /> Añadir
             </Button>
