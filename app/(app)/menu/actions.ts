@@ -58,7 +58,7 @@ export async function setSlot(input: unknown): Promise<MenuResult> {
   return done();
 }
 
-/** Marks a slot with no recipe, "fuera de casa" or "sobras" (replacing its recipe). */
+/** Marks a slot with no recipe, "fuera de casa" or "plato ya preparado" (replacing its recipe). */
 async function markSlotWithoutRecipe(input: unknown, kind: "away" | "leftovers"): Promise<MenuResult> {
   const { supabase } = await requireUser();
   const parsed = slotAwaySchema.safeParse(input);
@@ -89,7 +89,7 @@ export async function setSlotAway(input: unknown): Promise<MenuResult> {
   return markSlotWithoutRecipe(input, "away");
 }
 
-/** Marks a slot "sobras o improvisado": no recipe, nothing on the shopping list. */
+/** Marks a slot "plato ya preparado" (cooked ahead, e.g. several servings on purpose): no recipe, nothing on the shopping list. */
 export async function setSlotLeftovers(input: unknown): Promise<MenuResult> {
   return markSlotWithoutRecipe(input, "leftovers");
 }

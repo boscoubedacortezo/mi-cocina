@@ -276,7 +276,7 @@ export function WeekPlanner({
                         {leftoverKeys.has(slotKey(date, meal)) ? (
                           <>
                             <span className="flex flex-1 items-center gap-2 text-muted-foreground">
-                              <Recycle className="size-4" aria-hidden /> Sobras o improvisado
+                              <Recycle className="size-4" aria-hidden /> Plato ya preparado
                             </span>
                             <Button
                               type="button"
@@ -284,7 +284,7 @@ export function WeekPlanner({
                               size="icon"
                               disabled={pending}
                               onClick={() => run(() => clearSlot(slotInput(slot)))}
-                              aria-label={`Quitar «sobras» de la ${MEAL_LABELS[meal].toLowerCase()}`}
+                              aria-label={`Quitar «plato ya preparado» de la ${MEAL_LABELS[meal].toLowerCase()}`}
                             >
                               <X />
                             </Button>

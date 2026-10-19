@@ -10,7 +10,7 @@ export type MenuItemView = {
   servings: number;
   /** Marked "fuera de casa": no recipe, and the AI skips it. */
   away: boolean;
-  /** "Sobras o improvisado": a meal with no recipe that is not away from home. */
+  /** "Plato ya preparado": cooked ahead, so no recipe and no shopping; not away from home. */
   leftovers: boolean;
   recipe: { id: string; title: string; tags: string[] } | null;
 };

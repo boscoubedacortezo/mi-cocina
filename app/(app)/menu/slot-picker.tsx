@@ -40,7 +40,7 @@ export function SlotPicker({
   onRegenerate: () => void;
   /** Marks this slot "fuera de casa": no recipe, nothing generated. */
   onAway: () => void;
-  /** Marks this slot "sobras o improvisado": no recipe, nothing on the shopping list. */
+  /** Marks this slot "plato ya preparado" (cooked ahead): no recipe, nothing on the shopping list. */
   onLeftovers: () => void;
   /** Where to create a new recipe that will land in this slot. */
   createHref: string;
@@ -164,12 +164,12 @@ export function SlotPicker({
             type="button"
             onClick={onLeftovers}
             disabled={pending}
-            title="Sobras o improvisado: sin receta y sin compra"
-            aria-label="Sobras o improvisado"
+            title="Plato ya preparado: sin receta y sin compra"
+            aria-label="Plato ya preparado"
             className={tile}
           >
             <Recycle className="size-5" aria-hidden />
-            Sobras
+            Preparado
           </button>
         </div>
         <p className="text-xs text-muted-foreground">
