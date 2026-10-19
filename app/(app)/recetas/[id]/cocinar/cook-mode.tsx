@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  BellOff,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -31,16 +32,22 @@ type RunningTimer = {
   done: boolean;
 };
 
-/** A short beep and a vibration: the timer must be noticed with the phone on the counter. */
-function alarm() {
+/**
+ * Three beeps and a vibration. Phones only allow sound that follows a tap, so the audio
+ * context is created and "unlocked" when a timer is started (see `unlockAudio`), and
+ * reused here when it rings.
+ */
+function beep(context: AudioContext | null) {
   try {
     navigator.vibrate?.([300, 150, 300, 150, 300]);
-    const context = new AudioContext();
+    if (!context) return;
+    if (context.state === "suspended") void context.resume();
     [0, 0.35, 0.7].forEach((delay) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
+      oscillator.type = "square";
       oscillator.frequency.value = 880;
-      gain.gain.value = 0.2;
+      gain.gain.value = 0.25;
       oscillator.connect(gain).connect(context.destination);
       oscillator.start(context.currentTime + delay);
       oscillator.stop(context.currentTime + delay + 0.2);
@@ -66,7 +73,9 @@ export function CookMode({
   const [showIngredients, setShowIngredients] = useState(false);
   const [timers, setTimers] = useState<RunningTimer[]>([]);
   const [now, setNow] = useState(() => Date.now());
-  const alarmed = useRef(new Set<string>());
+  const audio = useRef<AudioContext | null>(null);
+  // Timers whose ringing the user has silenced.
+  const [silenced, setSilenced] = useState<Set<string>>(new Set());
 
   const current = way === "thermomix" && thermomix ? thermomix : original;
   const step = current.steps[index];
@@ -100,17 +109,6 @@ export function CookMode({
     return () => clearInterval(id);
   }, [anyRunning]);
 
-  useEffect(() => {
-    for (const timer of timers) {
-      if (timer.endsAt === null || timer.done || timer.endsAt > now) continue;
-      if (!alarmed.current.has(timer.id)) {
-        alarmed.current.add(timer.id);
-        alarm();
-      }
-    }
-  }, [now, timers]);
-
-  // `now` may be a moment behind right after a timer starts: never show more than its total.
   const remaining = (timer: RunningTimer) =>
     timer.done
       ? 0
@@ -119,7 +117,31 @@ export function CookMode({
         : Math.min(timer.total, Math.max(0, (timer.endsAt - now) / 1000));
   const finished = (timer: RunningTimer) => timer.endsAt !== null && remaining(timer) <= 0;
 
+  // A finished timer rings every few seconds until it is silenced, reset or removed.
+  const ringing = timers.some((timer) => finished(timer) && !silenced.has(timer.id));
+  useEffect(() => {
+    if (!ringing) return;
+    beep(audio.current);
+    const id = setInterval(() => beep(audio.current), 3000);
+    return () => clearInterval(id);
+  }, [ringing]);
+
+  /** Called inside a tap (starting a timer): the only moment the browser allows sound to start. */
+  function unlockAudio() {
+    try {
+      audio.current ??= new AudioContext();
+      void audio.current.resume();
+      const silence = audio.current.createBufferSource();
+      silence.buffer = audio.current.createBuffer(1, 1, 22050);
+      silence.connect(audio.current.destination);
+      silence.start(0);
+    } catch {
+      // No audio support: only the screen and the vibration.
+    }
+  }
+
   function startTimer(label: string, seconds: number) {
+    unlockAudio();
     setTimers((all) => [
       ...all,
       { id: crypto.randomUUID(), label, total: seconds, left: seconds, endsAt: Date.now() + seconds * 1000, done: false },
@@ -137,7 +159,11 @@ export function CookMode({
     );
   }
   function resetTimer(id: string) {
-    alarmed.current.delete(id);
+    setSilenced((all) => {
+      const next = new Set(all);
+      next.delete(id);
+      return next;
+    });
     setTimers((all) => all.map((t) => (t.id === id ? { ...t, left: t.total, endsAt: null, done: false } : t)));
   }
   function removeTimer(id: string) {
@@ -246,7 +272,7 @@ export function CookMode({
                 key={timer.id}
                 className={cn(
                   "flex items-center gap-2 rounded-lg border bg-background px-3 py-1.5",
-                  isDone && "border-primary bg-primary/10",
+                  isDone && !silenced.has(timer.id) ? "animate-pulse border-primary bg-primary/10" : isDone && "border-primary bg-primary/10",
                 )}
               >
                 <Timer className={cn("size-4 shrink-0", isDone && "text-primary")} aria-hidden />
@@ -254,6 +280,17 @@ export function CookMode({
                 <span className={cn("font-mono text-lg tabular-nums", isDone && "font-semibold text-primary")}>
                   {isDone ? "¡Listo!" : formatClock(remaining(timer))}
                 </span>
+                {isDone && !silenced.has(timer.id) && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    onClick={() => setSilenced((all) => new Set(all).add(timer.id))}
+                    aria-label="Silenciar el aviso"
+                    title="Silenciar"
+                  >
+                    <BellOff />
+                  </Button>
+                )}
                 {!isDone && (
                   <Button
                     type="button"
