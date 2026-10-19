@@ -39,8 +39,8 @@ const Oven = svg(
 
 const Pan = svg(
   <>
-    <circle cx="9" cy="12" r="6" />
-    <path d="M15 12h7" />
+    <path d="M2 9h15l-1.2 7.4A3 3 0 0 1 12.8 19H6.2a3 3 0 0 1-3-2.6z" />
+    <path d="M17 11.5h5" />
   </>,
 );
 
