@@ -33,6 +33,7 @@ function describeRecipe(recipe: RecipeDetail, servings: number) {
 
 export type ThermomixDraft = {
   servings: number;
+  capacity: { peak_ml: number; step: number; fitting_servings: number | null };
   ingredients_text: string;
   steps: ThermomixStep[];
   notes: string | null;
@@ -99,8 +100,20 @@ function toThermomixDraft(ai: AiThermomix): ThermomixDraft {
     })
     .filter((step) => step.text);
 
+  const servings = Math.min(100, Math.max(1, ai.servings));
   return {
-    servings: Math.min(100, Math.max(1, ai.servings)),
+    servings,
+    capacity: {
+      peak_ml: Math.max(0, ai.capacity.peak_volume_ml),
+      step: Math.min(Math.max(1, ai.capacity.busiest_step), Math.max(1, steps.length)),
+      // A suggestion that fits means fewer servings than the ones asked for.
+      fitting_servings:
+        ai.capacity.fitting_servings !== null &&
+        ai.capacity.fitting_servings >= 1 &&
+        ai.capacity.fitting_servings < servings
+          ? ai.capacity.fitting_servings
+          : null,
+    },
     ingredients_text: ai.ingredients
       .map((line) => line.trim())
       .filter(Boolean)

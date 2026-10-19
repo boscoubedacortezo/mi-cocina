@@ -16,6 +16,7 @@ import {
   type SourceType,
   type Unit,
 } from "./constants";
+import { TM_BOWL_ML } from "@/lib/thermomix/constants";
 import { recipeOrigin, type Origin } from "./origin";
 
 export type RecipeSummary = {
@@ -34,6 +35,8 @@ export type RecipeSummary = {
   has_thermomix: boolean;
   /** Imported from a Cookidoo link: it is cooked in Cookidoo, so it has no steps here. */
   from_cookidoo: boolean;
+  /** Its Thermomix version does not fit in the bowl with the servings it has. */
+  thermomix_overflow: boolean;
   /** Where it comes from (Cookidoo, Instagram, a website, typed by hand...). */
   origin: Origin;
 };
@@ -96,7 +99,7 @@ type ListRow = {
   description?: string | null;
   notes?: string | null;
   recipe_ingredients?: { name: string }[];
-  thermomix_versions: { id: string }[];
+  thermomix_versions: { id: string; capacity: { peak_ml?: number } | null }[];
 };
 
 export async function listRecipes(filters: {
@@ -127,7 +130,7 @@ export async function listRecipes(filters: {
     "source_type",
     "source_url",
     ...(searching ? ["description", "notes", "recipe_ingredients(name)"] : []),
-    "thermomix_versions(id)",
+    "thermomix_versions(id, capacity)",
   ].join(", ");
   let query = supabase
     .from("recipes")
@@ -185,6 +188,9 @@ export async function listRecipes(filters: {
     image_url: row.image_path ? (urls.get(row.image_path) ?? null) : null,
     has_thermomix: Array.isArray(row.thermomix_versions) && row.thermomix_versions.length > 0,
     from_cookidoo: isCookidooUrl(row.source_url),
+    thermomix_overflow:
+      Array.isArray(row.thermomix_versions) &&
+      row.thermomix_versions.some((version) => (version.capacity?.peak_ml ?? 0) > TM_BOWL_ML),
     origin: recipeOrigin(row.source_type, row.source_url),
   }));
   // Decided here, with the same rules that draw the card, instead of URL patterns in SQL.

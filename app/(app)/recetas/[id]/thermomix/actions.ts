@@ -69,6 +69,7 @@ export async function convertToTm7(
     model: "TM7",
     servings: draft.servings,
     notes: draft.notes,
+    capacity: draft.capacity,
     source_signature: contentSignature(recipe),
     ingredients_text: draft.ingredients_text,
     steps: draft.steps,

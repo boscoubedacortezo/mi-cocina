@@ -13,7 +13,17 @@ export type ThermomixVersion = {
   ingredients_text: string;
   steps: ThermomixStep[];
   cookidoo_text: string;
+  /** How full the bowl gets; null for versions made before this was measured. */
+  capacity: BowlCapacity | null;
 };
+
+export type BowlCapacity = { peak_ml: number; step: number; fitting_servings: number | null };
+
+const capacitySchema = z.object({
+  peak_ml: z.number(),
+  step: z.number(),
+  fitting_servings: z.number().nullable(),
+});
 
 export async function getThermomixVersion(
   recipeId: string,
@@ -21,7 +31,7 @@ export async function getThermomixVersion(
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("thermomix_versions")
-    .select("id, servings, notes, source_signature, ingredients_text, steps, cookidoo_text")
+    .select("id, servings, notes, source_signature, ingredients_text, steps, cookidoo_text, capacity")
     .eq("recipe_id", recipeId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -39,6 +49,7 @@ export async function getThermomixVersion(
     ingredients_text: data.ingredients_text,
     steps: steps.data,
     cookidoo_text: data.cookidoo_text ?? "",
+    capacity: capacitySchema.safeParse(data.capacity).data ?? null,
   };
 }
 

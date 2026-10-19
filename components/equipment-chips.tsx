@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import { EQUIPMENT_ICONS, ThermomixIcon } from "@/components/equipment-icons";
 import { EQUIPMENT_LABELS, type Equipment } from "@/lib/recipes/constants";
 import { cn } from "@/lib/utils";
@@ -11,11 +12,14 @@ export function EquipmentChips({
   thermomix,
   equipment,
   variant = "icons",
+  overflow = false,
   className,
 }: {
   thermomix: boolean;
   equipment: Equipment[];
   variant?: "icons" | "labels";
+  /** The Thermomix version does not fit in the bowl: the chip warns. */
+  overflow?: boolean;
   className?: string;
 }) {
   if (!thermomix && equipment.length === 0) return null;
@@ -36,6 +40,18 @@ export function EquipmentChips({
         >
           <ThermomixIcon className="size-4" aria-hidden />
           {labels ? "Thermomix" : <span className="sr-only">Thermomix</span>}
+        </li>
+      )}
+      {thermomix && overflow && (
+        <li
+          title="La versión Thermomix no cabe en el vaso con esas raciones"
+          className={cn(
+            "inline-flex h-6 items-center justify-center gap-1 rounded-md bg-amber-500/20 font-medium text-amber-700",
+            labels ? "px-1.5 text-xs" : "w-6",
+          )}
+        >
+          <TriangleAlert className="size-4" aria-hidden />
+          {labels ? "No cabe en el vaso" : <span className="sr-only">No cabe en el vaso</span>}
         </li>
       )}
       {equipment.map((item) => {

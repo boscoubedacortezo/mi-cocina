@@ -48,6 +48,7 @@ export function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
           )}
           <EquipmentChips
             thermomix={recipe.has_thermomix || recipe.from_cookidoo}
+            overflow={recipe.thermomix_overflow}
             equipment={recipe.equipment}
           />
           {(recipe.course || recipe.main_ingredient) && (

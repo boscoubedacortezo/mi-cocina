@@ -51,6 +51,14 @@ export const aiThermomixSchema = z.object({
     }),
   ),
   notes: z.string().nullable(),
+  /** How full the bowl gets in the busiest step, for the servings as asked (never reduced). */
+  capacity: z.object({
+    peak_volume_ml: z.number().int(),
+    /** 1-based number of that step. */
+    busiest_step: z.number().int(),
+    /** The most servings that would fit in the bowl, or null if it already fits. */
+    fitting_servings: z.number().int().nullable(),
+  }),
 });
 
 export type AiThermomix = z.infer<typeof aiThermomixSchema>;

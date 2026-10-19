@@ -36,6 +36,9 @@ export type TmAccessory = (typeof TM_ACCESSORIES)[number];
 /** The TM7 timer stops at 99 minutes. */
 export const TM_MAX_SECONDS = 99 * 60;
 
+/** The bowl holds 2.2 litres at most (less if the content boils or foams). */
+export const TM_BOWL_ML = 2200;
+
 /** The butterfly whisk is only safe up to speed 4. */
 export const TM_BUTTERFLY_MAX_SPEED = 4;
 

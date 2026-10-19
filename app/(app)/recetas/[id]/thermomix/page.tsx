@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { buildCookidooRecipe } from "@/lib/cookidoo/payload";
 import { serializeRecipe } from "@/lib/cookidoo/runner";
 import { socialPlatform } from "@/lib/recipes/social-url";
 import { contentSignature } from "@/lib/recipes/auto-meta";
 import { getRecipe } from "@/lib/recipes/queries";
 import { resolveTotalMinutes } from "@/lib/thermomix/cookidoo";
+import { TM_BOWL_ML } from "@/lib/thermomix/constants";
 import { getThermomixVersion } from "@/lib/thermomix/queries";
 import { ConvertPanel } from "./convert-panel";
 import { DeleteVersionButton } from "./delete-version-button";
@@ -23,6 +24,8 @@ export default async function ThermomixPage({
   const { id } = await params;
   const [recipe, version] = await Promise.all([getRecipe(id), getThermomixVersion(id)]);
   const empty = recipe.steps.length === 0;
+  // The version keeps the servings that were asked for; if the bowl cannot hold them, say so.
+  const overflow = version?.capacity && version.capacity.peak_ml > TM_BOWL_ML ? version.capacity : null;
 
   // Versions made before the fingerprint existed cannot be compared.
   const legacy = version !== null && version.source_signature === null;
@@ -66,6 +69,24 @@ export default async function ThermomixPage({
         </p>
       )}
 
+      {overflow && version && (
+        <div
+          role="alert"
+          className="flex gap-3 rounded-xl border border-amber-500/50 bg-amber-500/10 p-3 text-sm"
+        >
+          <TriangleAlert className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden />
+          <p>
+            <strong>Esta receta no cabe en el vaso con {version.servings ?? recipe.servings} raciones.</strong>{" "}
+            En el paso {overflow.step} llegaría a unos {(overflow.peak_ml / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 })} L y el máximo es{" "}
+            {(TM_BOWL_ML / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 })} L.{" "}
+            {overflow.fitting_servings
+              ? `Con unas ${overflow.fitting_servings} raciones sí cabría: puedes volver a convertirla más abajo. `
+              : "Reduce las raciones y vuelve a convertirla más abajo. "}
+            La receta está como la pediste: no he tocado las cantidades.
+          </p>
+        </div>
+      )}
+
       {version ? (
         <>
           <VersionView
@@ -86,12 +107,16 @@ export default async function ThermomixPage({
               }),
             )}
           />
-          <details open={outdated || legacy} className="rounded-xl border p-4">
+          <details open={outdated || legacy || Boolean(overflow)} className="rounded-xl border p-4">
             <summary className="cursor-pointer text-sm font-medium">
               Volver a convertir con otras raciones
             </summary>
             <div className="mt-3">
-              <ConvertPanel recipeId={recipe.id} defaultServings={recipe.servings} replacing />
+              <ConvertPanel
+                recipeId={recipe.id}
+                defaultServings={overflow?.fitting_servings ?? recipe.servings}
+                replacing
+              />
             </div>
           </details>
           <DeleteVersionButton recipeId={recipe.id} />

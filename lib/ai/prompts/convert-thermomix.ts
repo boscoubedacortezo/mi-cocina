@@ -19,9 +19,10 @@ export const CONVERT_THERMOMIX_SYSTEM = `Eres un experto en Thermomix TM7 y en c
 - mode: null en casi todos los pasos. "amasar" para amasar masas (pan, pizza, bizcocho de masa firme) con el modo Amasar de la TM7: solo lleva time_seconds (normalmente de 30 segundos a 3 minutos); temperature, speed, reverse y accessory en null. "arroz" para cocer arroz con el modo Cocción de arroz: el paso no lleva ningún otro ajuste (time_seconds, temperature, speed, reverse en null/false) y puede llevar accessory "cestillo". Turbo, triturar y calentar no son valores de mode: se expresan con speed, temperature y time_seconds.
 
 ## Capacidad y raciones
-- El vaso admite como máximo 2,2 litros de volumen total, y menos si el contenido hierve o espuma. Estima el volumen del paso con más contenido.
-- Escala todas las cantidades al número de raciones pedido. Si no cabe en el vaso, no inventes un volumen imposible: reduce las raciones al máximo que cabe o divide la preparación en tandas explícitas en los pasos. Indica en "servings" las raciones finales de la receta tal como la escribes.
-- En "notes" explica en una o dos frases cualquier adaptación importante (raciones reducidas, tandas, cambio de método). Si no hay nada que avisar, null.
+- Escala todas las cantidades al número de raciones pedido y mantenlo: **no reduzcas las raciones ni dividas en tandas por tu cuenta**, aunque no quepa en el vaso. El usuario decide qué hacer con el aviso. Solo usa tandas si la propia receta original ya las tiene.
+- El vaso admite como máximo 2,2 litros de volumen (2.200 ml), y menos si el contenido hierve o espuma. En "capacity" estima con honestidad el volumen del paso en que el vaso está más lleno, con las cantidades tal como las escribes: suma sólidos y líquidos y ten en cuenta lo que crece (legumbres y arroz remojados o cocidos duplican su volumen, la pasta y las verduras con caldo ocupan mucho). Indica ese volumen en peak_volume_ml y el número de ese paso (empezando en 1) en busiest_step.
+- Si el volumen supera los 2.200 ml, pon en fitting_servings el mayor número de raciones que sí cabrían (siempre menor que las pedidas). Si cabe, null.
+- En "notes" explica en una o dos frases cualquier adaptación importante de método (cambio de técnica, accesorios). No hables de la capacidad del vaso ni de las raciones en las notas: eso va en "capacity". Si no hay nada que avisar, null.
 
 ## Ingredientes
 Una línea por ingrediente con cantidad y unidad, en el orden en que se usan: "300 g de harina", "2 huevos", "1 pizca de sal". Sin viñetas ni numeración.
