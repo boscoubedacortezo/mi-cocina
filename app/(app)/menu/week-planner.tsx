@@ -144,28 +144,28 @@ export function WeekPlanner({
         rangeLabel={rangeLabel}
       />
 
-      <div className="grid grid-cols-[1fr_auto] gap-2">
+      <div className="flex items-center justify-end gap-2">
+        {pending && !picker && (
+          <p role="status" className="mr-auto text-xs text-muted-foreground">
+            Pensando el menú… (hasta un minuto)
+          </p>
+        )}
         <Button
           type="button"
-          size="lg"
+          size="icon-lg"
+          className="size-10"
           disabled={pending || emptyCount === 0 || recipes.length === 0}
-          onClick={() =>
-            run(() => generateWeek(weekStart), { success: "Menú generado" })
-          }
+          onClick={() => run(() => generateWeek(weekStart), { success: "Menú generado" })}
+          aria-label="Generar con IA los huecos vacíos"
+          title="Generar con IA los huecos vacíos"
         >
-          {pending && !picker ? (
-            <Loader2 className="animate-spin" />
-          ) : (
-            <Sparkles />
-          )}
-          {pending && !picker
-            ? "Pensando el menú… (hasta un minuto)"
-            : "Generar con IA los huecos vacíos"}
+          {pending && !picker ? <Loader2 className="size-5 animate-spin" /> : <Sparkles className="size-5" />}
         </Button>
         <Button
           type="button"
           variant="outline"
-          size="lg"
+          size="icon-lg"
+          className="size-10"
           disabled={pending || bySlot.size === 0}
           onClick={() => {
             if (window.confirm("¿Vaciar todos los huecos de esta semana?")) {
@@ -173,8 +173,9 @@ export function WeekPlanner({
             }
           }}
           aria-label="Vaciar semana"
+          title="Vaciar semana"
         >
-          <Trash2 />
+          <Trash2 className="size-5" />
         </Button>
       </div>
       {recipes.length === 0 && (
@@ -346,7 +347,9 @@ export function WeekPlanner({
                           <Button
                             type="button"
                             variant="outline"
-                            className="flex-1 justify-start text-muted-foreground"
+                            className="h-9 flex-1 border-dashed text-muted-foreground"
+                            aria-label={`Añadir ${MEAL_LABELS[meal].toLowerCase()}`}
+                            title="Añadir receta"
                             onClick={() =>
                               setPicker({
                                 ...slot,
@@ -355,7 +358,7 @@ export function WeekPlanner({
                             }
                             disabled={pending}
                           >
-                            <Plus /> Añadir
+                            <Plus className="size-5" />
                           </Button>
                         )}
                       </div>

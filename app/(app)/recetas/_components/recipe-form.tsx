@@ -575,9 +575,12 @@ export function RecipeForm({
         <Button
           type="button"
           variant="outline"
+          className="border-dashed"
           onClick={() => setIngredients([...ingredients, emptyIngredient()])}
+          aria-label="Añadir ingrediente"
+          title="Añadir ingrediente"
         >
-          <Plus /> Añadir ingrediente
+          <Plus className="size-5" />
         </Button>
       </section>
 
@@ -637,9 +640,12 @@ export function RecipeForm({
         <Button
           type="button"
           variant="outline"
+          className="border-dashed"
           onClick={() => setSteps([...steps, { key: newKey(), text: "" }])}
+          aria-label="Añadir paso"
+          title="Añadir paso"
         >
-          <Plus /> Añadir paso
+          <Plus className="size-5" />
         </Button>
       </section>
 

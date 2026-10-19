@@ -83,8 +83,13 @@ export default async function RecipesPage({ searchParams }: PageProps<"/recetas"
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-semibold">Recetas</h1>
-        <Link href="/recetas/nueva" className={buttonVariants({ size: "sm" })}>
-          <Plus /> Nueva
+        <Link
+          href="/recetas/nueva"
+          className={buttonVariants({ size: "icon-lg", className: "size-10" })}
+          aria-label="Nueva receta"
+          title="Nueva receta"
+        >
+          <Plus className="size-5" />
         </Link>
       </div>
 

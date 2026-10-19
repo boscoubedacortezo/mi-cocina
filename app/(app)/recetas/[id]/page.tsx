@@ -106,32 +106,38 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
           </div>
         )}
         <EquipmentChips thermomix={hasTm7 || fromCookidoo} equipment={recipe.equipment} variant="labels" />
-        {fromCookidoo && recipe.source_url ? (
-          <a
-            href={recipe.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ size: "lg" })}
-          >
-            <ThermomixIcon /> Abrir en Cookidoo
-          </a>
-        ) : (
-          // Converting needs the recipe's steps.
-          recipe.steps.length > 0 && (
-            <Link
-              href={`/recetas/${recipe.id}/thermomix`}
-              className={buttonVariants({ size: "lg" })}
+        <div className="flex items-center gap-2">
+          {fromCookidoo && recipe.source_url ? (
+            <a
+              href={recipe.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ size: "icon-lg", className: "size-10" })}
+              aria-label="Abrir en Cookidoo"
+              title="Abrir en Cookidoo"
             >
-              <ThermomixIcon /> {hasTm7 ? "Ver versión Thermomix" : "Convertir a Thermomix"}
-            </Link>
-          )
-        )}
-        <div className="flex gap-2">
+              <ThermomixIcon className="size-5" />
+            </a>
+          ) : (
+            // Converting needs the recipe's steps.
+            recipe.steps.length > 0 && (
+              <Link
+                href={`/recetas/${recipe.id}/thermomix`}
+                className={buttonVariants({ size: "icon-lg", className: "size-10" })}
+                aria-label={hasTm7 ? "Ver versión Thermomix" : "Convertir a Thermomix"}
+                title={hasTm7 ? "Ver versión Thermomix" : "Convertir a Thermomix"}
+              >
+                <ThermomixIcon className="size-5" />
+              </Link>
+            )
+          )}
           <Link
             href={`/recetas/${recipe.id}/editar`}
-            className={buttonVariants({ variant: "outline" })}
+            className={buttonVariants({ variant: "outline", size: "icon-lg", className: "size-10" })}
+            aria-label="Editar receta"
+            title="Editar receta"
           >
-            <Pencil /> Editar
+            <Pencil className="size-5" />
           </Link>
           <DeleteRecipeButton id={recipe.id} title={recipe.title} />
         </div>

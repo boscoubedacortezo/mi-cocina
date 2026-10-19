@@ -194,13 +194,16 @@ export function FiltersButton(props: Props) {
       <Button
         type="button"
         variant="outline"
+        size="icon-lg"
+        className="relative size-10 shrink-0"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
         aria-label={count ? `Filtros (${count} activos)` : "Filtros"}
+        title="Filtros"
       >
-        <SlidersHorizontal /> Filtros
+        <SlidersHorizontal className="size-5" />
         {count > 0 && (
-          <span className="flex size-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+          <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
             {count}
           </span>
         )}

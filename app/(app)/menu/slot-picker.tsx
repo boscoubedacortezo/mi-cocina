@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Loader2, MapPin, Search, Sparkles, Trash2, X } from "lucide-react";
+import { Loader2, MapPin, Search, Sparkles, Trash2, WandSparkles, X } from "lucide-react";
 import { MainIngredientBadge } from "@/components/main-ingredient-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,9 @@ import { COURSE_LABELS, MAIN_INGREDIENT_LABELS } from "@/lib/recipes/constants";
 import { parseQuery, searchScore } from "@/lib/recipes/search";
 import type { RecipeOption } from "@/lib/menu/queries";
 import { cn } from "@/lib/utils";
+
+const tile =
+  "flex flex-col items-center justify-center gap-1 rounded-xl border bg-background py-2.5 text-xs font-medium transition-colors hover:bg-muted disabled:opacity-50";
 
 export function SlotPicker({
   title,
@@ -93,28 +96,46 @@ export function SlotPicker({
       </div>
 
       <div className="flex flex-col gap-3 p-4 pb-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            setBusy("ai");
-            onRegenerate();
-          }}
-          disabled={pending}
-        >
-          {pending && busy === "ai" ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          {pending && busy === "ai" ? "Pensando… (hasta un minuto)" : "Sugerir con IA"}
-        </Button>
-        <Button type="button" variant="outline" onClick={onAway} disabled={pending}>
-          <MapPin /> Fuera de casa
-        </Button>
-
-        <Link
-          href={createHref}
-          className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm font-medium"
-        >
-          <Sparkles className="size-4" aria-hidden /> Crear una receta nueva con IA
-        </Link>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setBusy("ai");
+              onRegenerate();
+            }}
+            disabled={pending}
+            title="Sugerir una receta de las tuyas con IA"
+            aria-label="Sugerir con IA"
+            className={tile}
+          >
+            {pending && busy === "ai" ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Sparkles className="size-5" />
+            )}
+            {pending && busy === "ai" ? "Pensando…" : "Sugerir"}
+          </button>
+          <Link
+            href={createHref}
+            title="Crear una receta nueva con IA"
+            aria-label="Crear una receta nueva con IA"
+            className={tile}
+          >
+            <WandSparkles className="size-5" aria-hidden />
+            Crear
+          </Link>
+          <button
+            type="button"
+            onClick={onAway}
+            disabled={pending}
+            title="Fuera de casa"
+            aria-label="Fuera de casa"
+            className={tile}
+          >
+            <MapPin className="size-5" aria-hidden />
+            Fuera
+          </button>
+        </div>
         <p className="text-xs text-muted-foreground">
           ¿Una receta de Cookidoo que aún no tienes?{" "}
           <Link href="/recetas/nueva" className="underline underline-offset-4">

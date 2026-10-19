@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ClipboardCopy, ListChecks, Pencil } from "lucide-react";
+import { ClipboardCopy, ListChecks, ListOrdered, Pencil, ShoppingBasket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { copyText } from "@/lib/clipboard";
@@ -63,38 +63,58 @@ export function VersionView({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Link
-          href={`/recetas/${recipeId}/thermomix/cookidoo`}
-          className={buttonVariants({ size: "lg" })}
-        >
-          <ListChecks /> Pasar a Cookidoo paso a paso
-        </Link>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => copyText(version.cookidoo_text, "Texto para Cookidoo")}
-        >
-          <ClipboardCopy /> Copiar todo el texto
-        </Button>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/recetas/${recipeId}/thermomix/cookidoo`}
+            className={buttonVariants({ size: "icon-lg", className: "size-10" })}
+            aria-label="Pasar a Cookidoo paso a paso"
+            title="Pasar a Cookidoo paso a paso"
+          >
+            <ListChecks className="size-5" />
+          </Link>
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="icon-lg"
+            className="size-10"
+            aria-label="Copiar todo el texto"
+            title="Copiar todo el texto"
+            onClick={() => copyText(version.cookidoo_text, "Texto para Cookidoo")}
+          >
+            <ClipboardCopy className="size-5" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-lg"
+            className="size-10"
+            aria-label="Copiar los ingredientes"
+            title="Copiar los ingredientes"
             onClick={() => copyText(buildIngredientsBlock(version.ingredients_text), "Ingredientes")}
           >
-            Ingredientes
+            <ShoppingBasket className="size-5" />
           </Button>
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="icon-lg"
+            className="size-10"
+            aria-label="Copiar los pasos"
+            title="Copiar los pasos"
             onClick={() => copyText(buildStepsBlock(version.steps), "Pasos")}
           >
-            Pasos
+            <ListOrdered className="size-5" />
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
-            <Pencil /> Editar
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-lg"
+            className="ml-auto size-10"
+            aria-label="Editar la versión"
+            title="Editar la versión"
+            onClick={() => setEditing(true)}
+          >
+            <Pencil className="size-5" />
           </Button>
         </div>
         <SendToCookidoo

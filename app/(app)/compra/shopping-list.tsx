@@ -168,9 +168,35 @@ export function ShoppingList({
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="font-heading text-2xl font-semibold">
-        Lista de la compra
-      </h1>
+      <div className="flex items-center gap-2">
+        <h1 className="mr-auto font-heading text-2xl font-semibold">
+          Lista de la compra
+        </h1>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-lg"
+          className="size-10"
+          onClick={copyList}
+          disabled={visible.length === 0}
+          aria-label="Copiar lista"
+          title="Copiar lista"
+        >
+          <ClipboardCopy className="size-5" />
+        </Button>
+        {!adding && (
+          <Button
+            type="button"
+            size="icon-lg"
+            className="size-10"
+            onClick={() => setAdding(true)}
+            aria-label="Añadir artículo"
+            title="Añadir artículo"
+          >
+            <Plus className="size-5" />
+          </Button>
+        )}
+      </div>
 
       <section className="flex flex-col gap-3 rounded-xl border p-3">
         <h2 className="text-sm font-medium">Periodo de la compra</h2>
@@ -219,15 +245,6 @@ export function ShoppingList({
             />
           </div>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={copyList}
-          disabled={visible.length === 0}
-        >
-          <ClipboardCopy /> Copiar lista
-        </Button>
         <p className="text-sm text-muted-foreground">
           {!rangeValid(start, end) ? (
             "Elige un periodo válido (la fecha final no puede ser anterior a la inicial, máximo 9 semanas)."
@@ -247,16 +264,6 @@ export function ShoppingList({
         </p>
       </section>
 
-      {!adding && (
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={() => setAdding(true)}
-        >
-          <Plus /> Añadir artículo
-        </Button>
-      )}
       {adding && (
         <form
           onSubmit={add}
