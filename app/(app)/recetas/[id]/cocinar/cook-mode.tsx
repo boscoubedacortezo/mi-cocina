@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   BellOff,
@@ -12,11 +12,13 @@ import {
   RotateCcw,
   ShoppingBasket,
   Timer,
+  Volume2,
   X,
 } from "lucide-react";
 import { ThermomixIcon } from "@/components/equipment-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { beepDataUrl, unlockDataUrl } from "@/lib/beep";
 import { findStepTimers, formatClock } from "@/lib/recipes/step-timers";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +41,6 @@ type RunningTimer = {
  */
 function beep(context: AudioContext | null) {
   try {
-    navigator.vibrate?.([300, 150, 300, 150, 300]);
     if (!context) return;
     if (context.state === "suspended") void context.resume();
     [0, 0.35, 0.7].forEach((delay) => {
@@ -74,6 +75,8 @@ export function CookMode({
   const [timers, setTimers] = useState<RunningTimer[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const audio = useRef<AudioContext | null>(null);
+  const player = useRef<HTMLAudioElement | null>(null);
+  const sounds = useRef<{ beep: string; unlock: string } | null>(null);
   // Timers whose ringing the user has silenced.
   const [silenced, setSilenced] = useState<Set<string>>(new Set());
 
@@ -117,17 +120,40 @@ export function CookMode({
         : Math.min(timer.total, Math.max(0, (timer.endsAt - now) / 1000));
   const finished = (timer: RunningTimer) => timer.endsAt !== null && remaining(timer) <= 0;
 
+  /** The beeps and the vibration; the audio element first, the generated sound if it refuses. */
+  const ring = useCallback(() => {
+    navigator.vibrate?.([300, 150, 300, 150, 300]);
+    const element = player.current;
+    const url = sounds.current?.beep;
+    if (element && url) {
+      element.src = url;
+      element.currentTime = 0;
+      element.play().catch(() => beep(audio.current));
+    } else {
+      beep(audio.current);
+    }
+  }, []);
+
   // A finished timer rings every few seconds until it is silenced, reset or removed.
   const ringing = timers.some((timer) => finished(timer) && !silenced.has(timer.id));
   useEffect(() => {
     if (!ringing) return;
-    beep(audio.current);
-    const id = setInterval(() => beep(audio.current), 3000);
+    ring();
+    const id = setInterval(ring, 3000);
     return () => clearInterval(id);
-  }, [ringing]);
+  }, [ringing, ring]);
 
   /** Called inside a tap (starting a timer): the only moment the browser allows sound to start. */
   function unlockAudio() {
+    try {
+      // The element: a normal <audio> that has played once after a tap may play again later.
+      sounds.current ??= { beep: beepDataUrl(3), unlock: unlockDataUrl() };
+      player.current ??= new Audio();
+      player.current.src = sounds.current.unlock;
+      void player.current.play().catch(() => {});
+    } catch {
+      // Falls back to the generated sound below.
+    }
     try {
       audio.current ??= new AudioContext();
       void audio.current.resume();
@@ -208,6 +234,20 @@ export function CookMode({
             </Button>
           </div>
         )}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-lg"
+          className="size-10"
+          onClick={() => {
+            unlockAudio();
+            ring();
+          }}
+          aria-label="Probar el sonido del aviso"
+          title="Probar el sonido del aviso"
+        >
+          <Volume2 className="size-5" />
+        </Button>
         <Button
           type="button"
           variant="outline"
