@@ -12,11 +12,9 @@ export function DeleteRecipeButton({ id, title }: { id: string; title: string })
   return (
     <Button
       type="button"
-      variant="outline"
-      size="icon-lg"
-      className="size-10 text-destructive"
-      aria-label="Borrar receta"
-      title="Borrar receta"
+      variant="ghost"
+      size="sm"
+      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
       disabled={pending}
       onClick={() => {
         if (!window.confirm(`¿Borrar «${title}»? No se puede deshacer.`)) return;
@@ -26,7 +24,7 @@ export function DeleteRecipeButton({ id, title }: { id: string; title: string })
         });
       }}
     >
-      <Trash2 className="size-5" />
+      <Trash2 /> {pending ? "Borrando…" : "Borrar receta"}
     </Button>
   );
 }

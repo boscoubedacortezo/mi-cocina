@@ -139,7 +139,6 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
           >
             <Pencil className="size-5" />
           </Link>
-          <DeleteRecipeButton id={recipe.id} title={recipe.title} />
         </div>
       </header>
 
@@ -170,6 +169,11 @@ export default async function RecipePage({ params }: PageProps<"/recetas/[id]">)
           <ExternalLink className="size-4" aria-hidden /> {hostname(recipe.source_url)}
         </a>
       )}
+
+      {/* Far from the everyday actions, so it is never pressed by mistake. */}
+      <footer className="mt-4 flex justify-center border-t pt-6">
+        <DeleteRecipeButton id={recipe.id} title={recipe.title} />
+      </footer>
     </article>
   );
 }
