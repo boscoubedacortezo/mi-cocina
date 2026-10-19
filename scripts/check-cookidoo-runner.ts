@@ -14,12 +14,24 @@ const recipe: CookidooRecipe = buildCookidooRecipe({
   ],
 });
 
-async function run(code: string, extra: Record<string, unknown>, failAt?: string, cloudinaryFails = false) {
+async function run(
+  code: string,
+  extra: Record<string, unknown>,
+  failAt?: string,
+  cloudinaryFails = false,
+  listing: { titles: string[]; confirmAnswer?: boolean; listingFails?: boolean } = { titles: [] },
+) {
   const calls: string[] = [];
   const patches: { url: string; body: Record<string, unknown> }[] = [];
   const alerts: string[] = [];
   const location = { hostname: "cookidoo.es", href: "" };
-  const fetchMock = async (url: string, init: { method: string; body: string | FormData }) => {
+  const confirms: string[] = [];
+  const fetchMock = async (url: string, init: { method?: string; body?: string | FormData }) => {
+    if (init.method === undefined) {
+      calls.push(`GET ${url}`);
+      if (listing.listingFails) throw new Error("network");
+      return { ok: true, status: 200, text: async () => listing.titles.join("|") };
+    }
     if (url.startsWith("https://api-eu.cloudinary.com/")) {
       const form = init.body as FormData;
       calls.push(`CLOUDINARY ${[...form.keys()].sort().join(",")}`);
@@ -37,10 +49,17 @@ async function run(code: string, extra: Record<string, unknown>, failAt?: string
   const context = vm.createContext({
     fetch: fetchMock, alert: (m: string) => alerts.push(m), console, location, JSON, atob, Blob, FormData, Uint8Array, Math, Date, Boolean, String, Error,
     createImageBitmap: async () => ({ width: 640, height: 480 }),
+    DOMParser: class {
+      parseFromString(text: string) {
+        const leaves = text ? text.split("|").map((t) => ({ children: [], textContent: t })) : [];
+        return { querySelectorAll: () => leaves };
+      }
+    },
+    confirm: (m: string) => (confirms.push(m), listing.confirmAnswer ?? true),
     ...extra,
   });
   await vm.runInContext(code, context);
-  return { calls, alerts, href: location.href, patches };
+  return { calls, alerts, href: location.href, patches, confirms };
 }
 
 let failed = 0;
@@ -53,7 +72,7 @@ async function main() {
   const script = await run(buildRunnerScript(recipe), {});
   expect("console script: POST then 3 PATCH + tools, opens editor",
     script.calls.join("|") ===
-      "POST /created-recipes/es-ES recipeName|PATCH /created-recipes/es-ES/ID1 totalTime|PATCH /created-recipes/es-ES/ID1 ingredients|PATCH /created-recipes/es-ES/ID1 instructions|PATCH /created-recipes/es-ES/ID1 tools" &&
+      "GET /created-recipes/es-ES|POST /created-recipes/es-ES recipeName|PATCH /created-recipes/es-ES/ID1 totalTime|PATCH /created-recipes/es-ES/ID1 ingredients|PATCH /created-recipes/es-ES/ID1 instructions|PATCH /created-recipes/es-ES/ID1 tools" &&
     script.href === "/created-recipes/es-ES/ID1/edit" && script.alerts.length === 0, script);
 
   const bookmarklet = buildBookmarklet();
@@ -61,13 +80,13 @@ async function main() {
 
   const clipboard = { readText: async () => serializeRecipe(recipe) };
   const viaClipboard = await run(bookmarklet.slice("javascript:".length), { navigator: { clipboard } });
-  expect("bookmarklet reads the clipboard and sends", viaClipboard.href === "/created-recipes/es-ES/ID1/edit" && viaClipboard.calls.length === 5, viaClipboard);
+  expect("bookmarklet reads the clipboard and sends", viaClipboard.href === "/created-recipes/es-ES/ID1/edit" && viaClipboard.calls.length === 6, viaClipboard);
 
   const refused = { readText: async () => { throw new Error("denied"); } };
   const viaPrompt = await run(bookmarklet.slice("javascript:".length), {
     navigator: { clipboard: refused }, prompt: () => serializeRecipe(recipe),
   });
-  expect("bookmarklet falls back to a prompt", viaPrompt.calls.length === 5, viaPrompt);
+  expect("bookmarklet falls back to a prompt", viaPrompt.calls.length === 6, viaPrompt);
 
   const junk = await run(bookmarklet.slice("javascript:".length), { navigator: { clipboard: { readText: async () => "hola" } } });
   expect("bookmarklet rejects other clipboard text", junk.calls.length === 0 && junk.alerts.length === 1, junk);
@@ -94,6 +113,19 @@ async function main() {
   const broken = await run(buildRunnerScript({ ...recipe, photo }), {}, undefined, true);
   expect("photo failure: recipe stays, user is told, editor still opens",
     broken.alerts.length === 1 && broken.alerts[0].includes("foto") && broken.href === "/created-recipes/es-ES/ID1/edit", broken);
+
+  // Duplicates: the title is looked up in the user's list before creating anything.
+  const dup = await run(buildRunnerScript(recipe), {}, undefined, false, { titles: ["Otra", "  PRUEBA "], confirmAnswer: false });
+  expect("duplicate, user says no: asks and creates nothing",
+    dup.confirms.length === 1 && dup.confirms[0].includes("Prueba") && !dup.calls.some((c) => c.startsWith("POST")) && dup.href === "", dup);
+  const dupYes = await run(buildRunnerScript(recipe), {}, undefined, false, { titles: ["prueba"], confirmAnswer: true });
+  expect("duplicate, user says yes: creates it", dupYes.confirms.length === 1 && dupYes.href === "/created-recipes/es-ES/ID1/edit", dupYes);
+  const fresh = await run(buildRunnerScript(recipe), {}, undefined, false, { titles: ["Otra receta", "Prueba de algo"] });
+  expect("no exact match (a longer title does not count): no question", fresh.confirms.length === 0 && fresh.href !== "", fresh);
+  const unreadable = await run(buildRunnerScript(recipe), {}, undefined, false, { titles: [], listingFails: true });
+  expect("unreadable list: carries on without asking", unreadable.confirms.length === 0 && unreadable.href === "/created-recipes/es-ES/ID1/edit", unreadable);
+  const viaBookmarklet = await run(buildBookmarklet().slice("javascript:".length), { navigator: { clipboard: { readText: async () => serializeRecipe(recipe) } } }, undefined, false, { titles: ["Prueba"], confirmAnswer: false });
+  expect("bookmarklet asks too", viaBookmarklet.confirms.length === 1 && viaBookmarklet.href === "", viaBookmarklet);
 
   // The icons must survive: the serialised text has no raw private-use character.
   expect("serialised recipe is ASCII", /^[\x20-\x7e]*$/.test(serializeRecipe(recipe)));

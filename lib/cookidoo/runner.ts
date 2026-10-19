@@ -9,7 +9,9 @@ import type { CookidooRecipe } from "./payload";
 /**
  * Body shared by the console script and the bookmarklet. Expects `recipe` in scope.
  *
- * It must hold no `//` comments: the bookmarklet is squeezed into one line. The photo goes to
+ * It must hold no `//` comments: the bookmarklet is squeezed into one line. Before creating
+ * anything it looks at the user's list in Cookidoo and asks if a recipe with the same title
+ * is already there; if the list cannot be read it carries on without asking. The photo goes to
  * Cloudinary (Cookidoo's image service) with a signature Cookidoo gives, then gets linked to
  * the recipe; if that fails the recipe stays done, only without its photo.
  */
@@ -28,6 +30,14 @@ const CORE = `
     try { data = JSON.parse(text); } catch (e) {}
     return { ok: response.ok, status: response.status, data, text };
   };
+  try {
+    const listing = await fetch(base, { credentials: "include", headers: { accept: "text/html" } });
+    const doc = new DOMParser().parseFromString(await listing.text(), "text/html");
+    const norm = (t) => t.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/\\s+/g, " ").trim().toLowerCase();
+    const wanted = norm(recipe.create.recipeName);
+    const exists = [...doc.querySelectorAll("a, h1, h2, h3, h4, p, span")].some((el) => el.children.length === 0 && norm(el.textContent || "") === wanted);
+    if (exists && !confirm("Ya tienes en «Creadas por mí» una receta llamada «" + recipe.create.recipeName + "». ¿Crear otra igual?")) return;
+  } catch (e) {}
   const created = await call("POST", base, recipe.create);
   const id = created.data && created.data.recipeId;
   if (!created.ok || !id) { fail("Cookidoo no ha creado la receta (" + created.status + "). " + created.text.slice(0, 200)); return; }
