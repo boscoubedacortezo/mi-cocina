@@ -18,7 +18,7 @@ import {
 import { ThermomixIcon } from "@/components/equipment-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { beepDataUrl, unlockDataUrl } from "@/lib/beep";
+import { beepDataUrl, CHIME_NOTES, unlockDataUrl } from "@/lib/beep";
 import { useWakeLock } from "@/lib/use-wake-lock";
 import { findStepTimers, formatClock } from "@/lib/recipes/step-timers";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ type RunningTimer = {
 };
 
 /**
- * Three beeps and a vibration. Phones only allow sound that follows a tap, so the audio
+ * A soft chime and a short vibration. Phones only allow sound that follows a tap, so the audio
  * context is created and "unlocked" when a timer is started (see `unlockAudio`), and
  * reused here when it rings.
  */
@@ -44,15 +44,19 @@ function beep(context: AudioContext | null) {
   try {
     if (!context) return;
     if (context.state === "suspended") void context.resume();
-    [0, 0.35, 0.7].forEach((delay) => {
+    // The same rising chime as the audio file: soft attack, then a fade.
+    CHIME_NOTES.forEach((frequency, n) => {
+      const start = context.currentTime + n * 0.3;
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = "square";
-      oscillator.frequency.value = 880;
-      gain.gain.value = 0.25;
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.3, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 1.1);
       oscillator.connect(gain).connect(context.destination);
-      oscillator.start(context.currentTime + delay);
-      oscillator.stop(context.currentTime + delay + 0.2);
+      oscillator.start(start);
+      oscillator.stop(start + 1.15);
     });
   } catch {
     // No sound: the screen still shows it.
@@ -107,7 +111,7 @@ export function CookMode({
 
   /** The beeps and the vibration; the audio element first, the generated sound if it refuses. */
   const ring = useCallback(() => {
-    navigator.vibrate?.([300, 150, 300, 150, 300]);
+    navigator.vibrate?.([200, 100, 200]);
     const element = player.current;
     const url = sounds.current?.beep;
     if (element && url) {
@@ -132,7 +136,7 @@ export function CookMode({
   function unlockAudio() {
     try {
       // The element: a normal <audio> that has played once after a tap may play again later.
-      sounds.current ??= { beep: beepDataUrl(3), unlock: unlockDataUrl() };
+      sounds.current ??= { beep: beepDataUrl(), unlock: unlockDataUrl() };
       player.current ??= new Audio();
       player.current.src = sounds.current.unlock;
       void player.current.play().catch(() => {});
